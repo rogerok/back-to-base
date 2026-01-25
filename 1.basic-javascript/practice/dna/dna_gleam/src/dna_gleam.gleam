@@ -8,18 +8,13 @@ pub type Nucleotide {
   Thymine
 }
 
-pub fn greet(name: String) -> String {
-  "Hello, " <> name
-}
-
-
 pub fn encode_nucleotide(acid: Nucleotide) -> BitArray
 {
   case acid {
-    Adenine -> <<0b00:2>>
-    Cytosine -> <<0b01:2>>
-    Guanine -> <<0b1010:2>>
-    Thymine -> <<0b1011:2>>
+    Adenine -> <<00:2>>
+    Cytosine -> <<01:2>>
+    Guanine -> <<10:2>>
+    Thymine -> <<11:2>>
   }
 }
 
@@ -37,10 +32,6 @@ pub fn decode_nucliotide(val: Int) -> Result(Nucleotide, DecodeError)
     _ -> Error(CodeDoesNotExist)
   }
 }
-
-
-
-
 
 pub fn encode(dna: List(Nucleotide)) -> BitArray {
   bit_array.concat(list.map(dna, fn(v) {
