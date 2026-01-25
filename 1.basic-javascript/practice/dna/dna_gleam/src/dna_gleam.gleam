@@ -1,4 +1,7 @@
-pub type Acid {
+import gleam/list
+import gleam/bit_array
+
+pub type Nucleotide {
   Adenine
   Cytosine
   Guanine
@@ -10,13 +13,13 @@ pub fn greet(name: String) -> String {
 }
 
 
-pub fn encode_nucleotide(acid: Acid) -> BitArray
+pub fn encode_nucleotide(acid: Nucleotide) -> BitArray
 {
   case acid {
-    Adenine -> <<0b00>>
-    Cytosine -> <<0b01>>
-    Guanine -> <<0b1010>>
-    Thymine -> <<0b1011>>
+    Adenine -> <<0b00:2>>
+    Cytosine -> <<0b01:2>>
+    Guanine -> <<0b1010:2>>
+    Thymine -> <<0b1011:2>>
   }
 }
 
@@ -24,7 +27,7 @@ pub type DecodeError {
   CodeDoesNotExist
 }
 
-pub fn decode_nucliotide(val: Int) -> Result(Acid, DecodeError)
+pub fn decode_nucliotide(val: Int) -> Result(Nucleotide, DecodeError)
 {
   case val {
     0b00 -> Ok(Adenine)
@@ -35,11 +38,17 @@ pub fn decode_nucliotide(val: Int) -> Result(Acid, DecodeError)
   }
 }
 
-pub fn main() {
-  echo encode_nucleotide(Adenine)
-  echo encode_nucleotide(Cytosine)
-  echo encode_nucleotide(Guanine)
-  echo encode_nucleotide(Thymine)
 
-  echo decode_nucliotide(00)
+
+
+
+pub fn encode(dna: List(Nucleotide)) -> BitArray {
+  bit_array.concat(list.map(dna, fn(v) {
+    encode_nucleotide(v)
+  }))
+}
+
+pub fn main() {
+
+  echo encode([Adenine, Cytosine, Guanine, Thymine])
 }
