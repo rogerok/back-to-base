@@ -1,20 +1,20 @@
 import { match } from "ts-pattern";
 
-const NucleotideMap = {
+export const NucleotideMap = {
   Adenine: "Adenine",
   Cytosine: "Cytosine",
   Guanine: "Guanine",
   Thymine: "Thymine",
 } as const;
 
-const NucleotideValues = {
+export const NucleotideValues = {
   [NucleotideMap.Adenine]: 0b00,
   [NucleotideMap.Cytosine]: 0b01,
   [NucleotideMap.Guanine]: 0b1010,
   [NucleotideMap.Thymine]: 0b1011,
 } as const;
 
-type Nucleotide =
+export type Nucleotide =
   | {
       code: (typeof NucleotideValues)[typeof NucleotideMap.Adenine];
       type: typeof NucleotideMap.Adenine;
@@ -32,10 +32,10 @@ type Nucleotide =
       type: typeof NucleotideMap.Thymine;
     };
 
-type TNucleotide = Nucleotide["type"];
-type TNucleotideCode = Nucleotide["code"];
+export type TNucleotide = Nucleotide["type"];
+export type TNucleotideCode = Nucleotide["code"];
 
-const encodeNucleotide = (nucleotide: TNucleotide): TNucleotideCode =>
+export const encodeNucleotide = (nucleotide: TNucleotide): TNucleotideCode =>
   match<TNucleotide>(nucleotide)
     .with(NucleotideMap.Adenine, () => NucleotideValues[NucleotideMap.Adenine])
     .with(NucleotideMap.Cytosine, () => NucleotideValues[NucleotideMap.Cytosine])
@@ -43,7 +43,7 @@ const encodeNucleotide = (nucleotide: TNucleotide): TNucleotideCode =>
     .with(NucleotideMap.Thymine, () => NucleotideValues[NucleotideMap.Thymine])
     .exhaustive();
 
-const decodeNucleotide = (nucleotide: TNucleotideCode): TNucleotide =>
+export const decodeNucleotide = (nucleotide: TNucleotideCode): TNucleotide =>
   match<TNucleotideCode>(nucleotide)
     .with(NucleotideValues[NucleotideMap.Adenine], () => NucleotideMap.Adenine)
     .with(NucleotideValues[NucleotideMap.Cytosine], () => NucleotideMap.Cytosine)
@@ -51,65 +51,18 @@ const decodeNucleotide = (nucleotide: TNucleotideCode): TNucleotide =>
     .with(NucleotideValues[NucleotideMap.Thymine], () => NucleotideMap.Thymine)
     .exhaustive();
 
-const encode = (arr: TNucleotide[]): number => {
+export const encode = (arr: TNucleotide[]): number => {
   return arr.reduce((acc, item) => {
     return acc + (acc | NucleotideValues[item]);
   }, 0);
 };
 
-console.log(encode(["Adenine", "Cytosine", "Guanine", "Thymine"]));
+// TODO: implement decode func
 
-const decode = (v: number) => {
-  const arr = [];
-  let rem = 0;
-  let val = v;
-
-  while (val > 0) {
-    rem = Math.floor(val % 2);
-    arr.push(rem);
-    val = Math.floor(val / 2);
-  }
-
-  return arr;
-};
-
-class Stack<T> {
-  items: T[] = [];
-
-  push(item: T) {
-    this.items.push(item);
-  }
-
-  pop(): T | undefined {
-    return this.items.pop();
-  }
-
-  isEmpty(): boolean {
-    return this.items.length === 0;
-  }
-}
-
-function divideBy2(decNumber: number): string {
-  const stack = new Stack();
-  let rem = 0;
-  let binaryString = "";
-  let decNum = decNumber;
-
-  while (decNum > 0) {
-    rem = Math.floor(decNum % 2);
-    stack.push(rem);
-    decNum = Math.floor(decNum) / 2;
-  }
-
-  console.log("after first while", stack);
-
-  while (!stack.isEmpty()) {
-    // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
-    binaryString += stack.pop();
-  }
-
-  return binaryString;
-}
-
-console.log(divideBy2(27));
-console.log(decode(27));
+/*
+ *4. Decode a DNA bit array
+  Implement decode to accept a bit array representing nucleic acid and return the decoded data as a list of nucleotides.
+ * decode(<<27>>)
+   // -> Ok([Adenine, Cytosine, Guanine, Thymine])
+ *
+ * */

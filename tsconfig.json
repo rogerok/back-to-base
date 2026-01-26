@@ -4,7 +4,7 @@
     "module": "ESNext",
     "lib": ["ES2022"],
 
-    "types": ["node"],
+    "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node"],
 
     "moduleResolution": "node16",
     "noEmit": true,
