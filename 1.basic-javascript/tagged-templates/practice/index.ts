@@ -19,7 +19,7 @@ import {
   whitespace,
   zeroString,
 } from "./helpers.ts";
-import { space, theme, ThemeType } from "./theme.ts";
+import { theme } from "./theme.ts";
 
 export const templateToArray = (strings: TemplateStringsArray): string[] => {
   return splitBySemicolon(strings.flatMap((s) => removeNewLines(s)).join())
@@ -57,10 +57,7 @@ export const cssTagged = (
 ): Record<string, string> => {
   const declarations = templateToArray(strings);
 
-  console.log(declarations);
-
   const parsedDeclarations = parseDeclarations(declarations);
-  console.log(parsedDeclarations);
   const interpolationQueue = [...args];
 
   const parseToken = (token: string): string => {
@@ -82,26 +79,6 @@ export const cssTagged = (
   }, {});
 };
 
-const resp = cssTagged`
-  height: calc(100% - ${space}px);
-  min-height: ${(theme: ThemeType) => theme.spacing * 5}px;
-  max-width: ${space * 10}px;
-
-`;
-
 // const resp = cssTagged`
-//   margin: ${space}px   ${space}px;
-//
-//   min-height: ${(theme: ThemeType) => theme.spacing}px;
-//   min-width: 10rem;
-//
-//   padding: 0 ${space}px;
-//
-//   transition-duration: 200ms;
-//   transition-property: opacity transform background-color;
-//   transition-timing-function: ease-in-out;
-//
-//   width: 100%;
+//   height: calc(100% - ${space}px);
 // `;
-
-console.log(resp);

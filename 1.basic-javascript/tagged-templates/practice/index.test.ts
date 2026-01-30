@@ -109,11 +109,11 @@ describe("Tagged Template – big stress test (no calc, no math)", () => {
       
         margin: ${space}px   ${space}px;
       
-        min-height: ${(theme: ThemeType) => theme.spacing}px;
         min-width: 10rem;
       
         padding: 0 ${space}px;
-      
+        min-height: ${(theme: ThemeType) => theme.spacing * 5}px;
+        max-width: ${space * 10}px;
         transition-duration: 200ms;
         transition-property: opacity transform background-color;
         transition-timing-function: ease-in-out;
@@ -127,10 +127,8 @@ describe("Tagged Template – big stress test (no calc, no math)", () => {
       borderStyle: "solid dashed dotted double",
 
       borderWidth: "8px 8px 8px 8px",
-
       boxShadow: "0 0 8px rgba(0, 0, 0, 0.2)",
       display: "flex",
-
       flexDirection: "column",
       gap: "8px 8px",
 
@@ -138,7 +136,9 @@ describe("Tagged Template – big stress test (no calc, no math)", () => {
       justifyContent: "space-between",
 
       margin: "8px 8px",
-      minHeight: "4px",
+      maxWidth: "80px",
+
+      minHeight: "20px",
       minWidth: "10rem",
 
       padding: "0 8px",
