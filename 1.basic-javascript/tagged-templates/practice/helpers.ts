@@ -10,21 +10,21 @@ export const kebabCaseToCamelCase = (s: string): string => {
     .map((s, idx) => (idx ? firstCharToUpperCase(s) : s))
     .join("");
 };
-export const replaceSpaces = (s: string): string => s.replace(/\n/gi, "");
-export const replaceDashWithSpace = (s: string): string => s.replaceAll("-", " ");
+export const removeNewLines = (s: string): string => s.replace(/\n/gi, "");
 
 export const sliceBeforeColon = (s: string): string => s.slice(0, s.indexOf(":"));
 export const sliceAfterColon = (s: string): string => s.slice(s.lastIndexOf(":") + 1);
 
-export const comaToEmptyString = (s: string[]): string[] =>
+export const normalizeCommaTokens = (s: string[]): string[] =>
   s.reduce<string[]>((acc, s) => {
     const firstChar = s.charAt(0);
-    const isComa = firstChar === ",";
     const isOneChar = s.length === 1;
 
-    if (isComa && isOneChar) {
+    const isComma = firstChar === ",";
+
+    if (isComma && isOneChar) {
       acc.push("");
-    } else if (isComa && !isOneChar) {
+    } else if (isComma && !isOneChar) {
       acc.push(s.slice(1));
     } else {
       acc.push(s);

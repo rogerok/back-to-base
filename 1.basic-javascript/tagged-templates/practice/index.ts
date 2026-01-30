@@ -1,15 +1,15 @@
 import { match, P } from "ts-pattern";
 
 import {
-  comaToEmptyString,
   isFunction,
   isNumber,
   isNumericString,
   isString,
   kebabCaseToCamelCase,
   makePxString,
+  normalizeCommaTokens,
   pxString,
-  replaceSpaces,
+  removeNewLines,
   sliceAfterColon,
   sliceBeforeColon,
   splitBySemicolon,
@@ -21,7 +21,7 @@ import {
 import { space, theme, ThemeType } from "./theme.ts";
 
 export const templateToArray = (strings: TemplateStringsArray): string[] => {
-  return splitBySemicolon(strings.flatMap((s) => replaceSpaces(s)).join())
+  return splitBySemicolon(strings.flatMap((s) => removeNewLines(s)).join())
     .map(trimString)
     .filter(Boolean);
 };
@@ -30,10 +30,10 @@ const formatObjectKey = (s: string): string => {
   return kebabCaseToCamelCase(sliceBeforeColon(s));
 };
 const formatObjectValue = (s: string): string[] => {
-  return comaToEmptyString(splitBySpace(trimString(sliceAfterColon(s))));
+  return normalizeCommaTokens(splitBySpace(trimString(sliceAfterColon(s))));
 };
 
-const processArr = (arr: string[]): Record<string, string[]>[] => {
+const parseDeclarations = (arr: string[]): Record<string, string[]>[] => {
   return arr.map((s) => ({ [formatObjectKey(s)]: formatObjectValue(s) }));
 };
 
@@ -51,10 +51,10 @@ export const cssTagged = (
   ...args: unknown[]
 ): Record<string, string> => {
   const declarations = templateToArray(strings);
-  const processed = processArr(declarations);
+  const parsedDeclarations = parseDeclarations(declarations);
   const interpolationQueue = [...args];
 
-  const processToken = (token: string): string => {
+  const parseToken = (token: string): string => {
     return match(token)
       .returnType<string>()
       .with(zeroString, (v) => v)
@@ -64,9 +64,9 @@ export const cssTagged = (
       .otherwise((v) => v);
   };
 
-  return processed.reduce<Record<string, string>>((acc, item) => {
+  return parsedDeclarations.reduce<Record<string, string>>((acc, item) => {
     for (const [key, value] of Object.entries(item)) {
-      acc[key] = value.map(processToken).join(whitespace);
+      acc[key] = value.map(parseToken).join(whitespace);
     }
 
     return acc;
