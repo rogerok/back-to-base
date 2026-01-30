@@ -54,33 +54,23 @@ export const cssTagged = (
   const processed = processArr(declarations);
   const interpolationQueue = [...args];
 
-  const declarationMap = processed.reduce<Record<string, string[]>>((acc, item) => {
+  const processToken = (token: string): string => {
+    return match(token)
+      .returnType<string>()
+      .with(zeroString, (v) => v)
+      .with(pxString, () => makePxString(processArgument(interpolationQueue.shift())))
+      .with(P.string.length(0), () => processArgument(interpolationQueue.shift()))
+      .with(P.when(isNumericString), (v) => makePxString(v))
+      .otherwise((v) => v);
+  };
+
+  return processed.reduce<Record<string, string>>((acc, item) => {
     for (const [key, value] of Object.entries(item)) {
-      acc[key] = value;
+      acc[key] = value.map(processToken).join(whitespace);
     }
 
     return acc;
   }, {});
-
-  const styleObject: Record<string, string> = {};
-
-  for (const propertyName in declarationMap) {
-    const rawValues = declarationMap[propertyName];
-
-    styleObject[propertyName] = rawValues
-      .map((token) => {
-        return match(token)
-          .returnType<string>()
-          .with(zeroString, (v) => v)
-          .with(pxString, () => makePxString(processArgument(interpolationQueue.shift())))
-          .with(P.string.length(0), () => processArgument(interpolationQueue.shift()))
-          .with(P.when(isNumericString), (v) => makePxString(v))
-          .otherwise((v) => v);
-      })
-      .join(whitespace);
-  }
-
-  return styleObject;
 };
 
 const resp = cssTagged`
