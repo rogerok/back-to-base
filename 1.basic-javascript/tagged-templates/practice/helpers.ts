@@ -26,3 +26,8 @@ export const comaToEmptyString = (s: string[]): string[] =>
     }
     return acc;
   }, []);
+
+export const isString = (x: unknown): x is string => typeof x === "string";
+export const isNumber = (x: unknown): x is number => typeof x === "number";
+
+export const isFunction = (x: unknown): x is (...args: any[]) => unknown => typeof x === "function";
