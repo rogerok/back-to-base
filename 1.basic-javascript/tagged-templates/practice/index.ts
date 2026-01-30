@@ -33,7 +33,9 @@ const formatObjectKey = (s: string): string => {
     .otherwise((v) => kebabCaseToCamelCase(sliceBeforeColon(v)));
 };
 const formatObjectValue = (s: string): string[] => {
-  return normalizeCommaTokens(splitBySpace(trimString(sliceAfterColon(s).replace(/\s{2,}/g, " "))));
+  return normalizeCommaTokens(
+    splitBySpace(trimString(sliceAfterColon(s).replace(/\s{2,}/g, whitespace))),
+  );
 };
 
 const parseDeclarations = (arr: string[]): Record<string, string[]>[] => {
