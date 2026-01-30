@@ -85,16 +85,69 @@ describe("Tagged Template", () => {
   });
 });
 
-// max-width: ${space * 10}px;
-//
-// height: calc(100% - ${space}px);
-// min-height: ${(theme: ThemeType) => theme.spacing * 10}px;
+describe("Tagged Template – big stress test (no calc, no math)", () => {
+  it("should correctly handle complex mixed css without calc and multiplications", () => {
+    expect(
+      cssTagged`
+        --custom-var: 0 ${space}px ${(theme: ThemeType) => theme.spacing}px;
+      
+        align-items: center;
+      
+        border-color: ${(theme: ThemeType) => theme.color};
+        border-style: solid dashed dotted double;
+        border-width: ${space}px ${space}px ${space}px ${space}px;
+      
+        box-shadow: 0 0 ${space}px rgba(0, 0, 0, 0.2);
+      
+        display: flex;
+        flex-direction: column;
+      
+        gap: ${space}px ${space}px;
+      
+        height: 100px;
+        justify-content: space-between;
+      
+        margin: ${space}px   ${space}px;
+      
+        min-height: ${(theme: ThemeType) => theme.spacing}px;
+        min-width: 10rem;
+      
+        padding: 0 ${space}px;
+      
+        transition-duration: 200ms;
+        transition-property: opacity transform background-color;
+        transition-timing-function: ease-in-out;
+      
+        width: 100%;
+`,
+    ).toEqual({
+      "--custom-var": "0 8px 4px",
+      alignItems: "center",
+      borderColor: "blue",
+      borderStyle: "solid dashed dotted double",
 
-// {
-//   height: "calc(100% - 8px)",
-//
-//     maxWidth: "80px",
-//
-//   minHeight: "40px",
-//
-// }
+      borderWidth: "8px 8px 8px 8px",
+
+      boxShadow: "0 0 8px rgba(0, 0, 0, 0.2)",
+      display: "flex",
+
+      flexDirection: "column",
+      gap: "8px 8px",
+
+      height: "100px",
+      justifyContent: "space-between",
+
+      margin: "8px 8px",
+      minHeight: "4px",
+      minWidth: "10rem",
+
+      padding: "0 8px",
+
+      transitionDuration: "200ms",
+      transitionProperty: "opacity transform background-color",
+      transitionTimingFunction: "ease-in-out",
+
+      width: "100%",
+    });
+  });
+});

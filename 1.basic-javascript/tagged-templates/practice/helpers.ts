@@ -32,7 +32,7 @@ export const normalizeCommaTokens = (s: string[]): string[] =>
     return acc;
   }, []);
 
-export const makePxString = (v: string): string => `${v}px`;
+export const makePxString = (s: string): string => `${s}px`;
 
 export const pxString = "px";
 export const zeroString = "0";
@@ -43,4 +43,6 @@ export const isNumber = (v: unknown): v is number => typeof v === "number";
 export const isFunction = (v: unknown): v is (...args: unknown[]) => unknown =>
   typeof v === "function";
 
-export const isNumericString = (v: string): boolean => !Number.isNaN(Number(v));
+export const isNumericString = (s: string): boolean => !Number.isNaN(Number(s));
+
+export const isCssVariable = (s: string): boolean => s.startsWith("--");
