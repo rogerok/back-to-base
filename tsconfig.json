@@ -6,7 +6,7 @@
 
     "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node"],
 
-    "moduleResolution": "node16",
+    "moduleResolution": "bundler",
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "strict": true,
