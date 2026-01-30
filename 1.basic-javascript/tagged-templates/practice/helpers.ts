@@ -18,8 +18,13 @@ export const sliceAfterColon = (s: string): string => s.slice(s.lastIndexOf(":")
 
 export const comaToEmptyString = (s: string[]): string[] =>
   s.reduce<string[]>((acc, s) => {
-    if (s.charAt(0) === ",") {
+    const firstChar = s.charAt(0);
+    const isComa = firstChar === ",";
+    const isOneChar = s.length === 1;
+
+    if (isComa && isOneChar) {
       acc.push("");
+    } else if (isComa && !isOneChar) {
       acc.push(s.slice(1));
     } else {
       acc.push(s);
