@@ -32,7 +32,15 @@ export const comaToEmptyString = (s: string[]): string[] =>
     return acc;
   }, []);
 
-export const isString = (x: unknown): x is string => typeof x === "string";
-export const isNumber = (x: unknown): x is number => typeof x === "number";
+export const makePxString = (v: string): string => `${v}px`;
 
-export const isFunction = (x: unknown): x is (...args: any[]) => unknown => typeof x === "function";
+export const pxString = "px";
+export const zeroString = "0";
+export const whitespace = " ";
+
+export const isString = (v: unknown): v is string => typeof v === "string";
+export const isNumber = (v: unknown): v is number => typeof v === "number";
+export const isFunction = (v: unknown): v is (...args: unknown[]) => unknown =>
+  typeof v === "function";
+
+export const isNumericString = (v: string): boolean => !Number.isNaN(Number(v));
