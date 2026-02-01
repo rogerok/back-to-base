@@ -7,18 +7,18 @@ describe("Router middleware test", () => {
     const mockRequest: Request = {};
     const callOrder: number[] = [];
 
-    const globalMiddleWare = (_: Request, __: Response, next: Next): void => {
+    const globalMiddleware = (_: Request, __: Response, next: Next): void => {
       callOrder.push(0);
       next();
     };
 
-    const firstMiddleWare = (_: Request, __: Response, next: Next): void => {
+    const firstMiddleware = (_: Request, __: Response, next: Next): void => {
       callOrder.push(1);
       next();
     };
 
-    router.use("*", globalMiddleWare);
-    router.use("/", firstMiddleWare);
+    router.use("*", globalMiddleware);
+    router.use("/", firstMiddleware);
 
     router.get("/", mockRequest, mockResponse);
     router.get("/first", mockRequest, mockResponse);
@@ -32,21 +32,21 @@ describe("Router middleware test", () => {
     const mockRequest: Request = {};
     const callOrder: number[] = [];
 
-    const globalMiddleWare = (_: Request, __: Response, next: Next): void => {
+    const globalMiddleware = (_: Request, __: Response, next: Next): void => {
       callOrder.push(0);
       next();
     };
 
-    const firstMiddleWare = (): void => {
+    const firstMiddleware = (): void => {
       callOrder.push(1);
     };
-    const secondMiddleWare = (): void => {
+    const secondMiddleware = (): void => {
       callOrder.push(2);
     };
 
-    router.use("*", globalMiddleWare);
-    router.use("/first", firstMiddleWare);
-    router.use("/second", secondMiddleWare);
+    router.use("*", globalMiddleware);
+    router.use("/first", firstMiddleware);
+    router.use("/second", secondMiddleware);
 
     router.get("/", mockRequest, mockResponse);
     router.get("/first", mockRequest, mockResponse);
