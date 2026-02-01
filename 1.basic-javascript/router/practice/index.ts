@@ -1,9 +1,9 @@
-type Request = Record<string, any>;
-type Response = Record<string, any>;
+export type Request = Record<string, unknown>;
+export type Response = Record<string, unknown>;
 
 type TPath = string;
 
-type Next = () => void;
+export type Next = () => void;
 
 type Middleware = (req: Request, res: Response, next: Next) => void;
 
@@ -15,15 +15,13 @@ interface IRouter {
   basePath: TPath;
   readonly middlewareMap: MiddlewareMap;
 
-  handle(path: TPath, req: Request, res: Response): void;
+  handle(middleware: Middleware[], req: Request, res: Response): void;
 
   use(path: TPath, middleware: Middleware): void;
 }
 
 const BasePath = "/";
-
-// TODO: how to implement handling middlewares for all routes?
-const AllPath = "*";
+const GlobalPath = "*";
 
 export class Router implements IRouter {
   basePath: TPath;
@@ -41,45 +39,31 @@ export class Router implements IRouter {
     this.middlewareMap[path].push(middleware);
   };
 
-  handle = (path: string, req: Request, res: Response): void => {
-    let counter = 0;
-    const middlewares = this.middlewareMap[path];
-    const allRoutesMiddlewares = this.middlewareMap[AllPath];
+  getMiddlewaresForPath = (path: TPath): Middleware[] => {
+    return this.middlewareMap[path] ?? [];
+  };
+
+  handle = (middlewares: Middleware[], req: Request, res: Response): void => {
+    let index = 0;
 
     const next = (): void => {
-      counter += 1;
-      go();
+      index += 1;
+      dispatch();
     };
 
-    const go = (): void => {
-      if (allRoutesMiddlewares && allRoutesMiddlewares.length > counter) {
-        allRoutesMiddlewares[counter]?.(req, res, next);
-      }
-      if (middlewares && middlewares.length > counter) {
-        middlewares[counter]?.(req, res, next);
+    const dispatch = (): void => {
+      if (middlewares.length > index) {
+        middlewares[index]?.(req, res, next);
       }
     };
 
-    go();
+    dispatch();
   };
 
   get = (path: string, req: Request, res: Response): void => {
-    this.handle(path, req, res);
+    const globalMiddlewares = this.getMiddlewaresForPath(GlobalPath).filter(Boolean);
+    const currentMiddleware = this.getMiddlewaresForPath(path).filter(Boolean);
+
+    this.handle([...globalMiddlewares, ...currentMiddleware], req, res);
   };
 }
-
-const router = new Router();
-
-router.use("*", (_: Request, __: Response, next: Next) => {
-  console.log("start first");
-  next();
-  console.log("end first");
-});
-
-router.use("/", (_: Request, __: Response, next: Next) => {
-  console.log("start second");
-  next();
-  console.log("end second");
-});
-
-router.get("/", {}, {});

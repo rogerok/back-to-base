@@ -1,21 +1,56 @@
-// function test2() {
-//   const router = new Router();
-//   const callOrder: number[] = [];
-//
-//   router.use((req, res) => {
-//     callOrder.push(1);
-//   });
-//   router.use((req, res, next) => {
-//     callOrder.push(2);
-//     setTimeout(() => next(), 10);
-//   });
-//   router.use((req, res) => {
-//     callOrder.push(3);
-//   });
-//
-//   router.handle(mockReq, mockRes);
-//
-//   setTimeout(() => {
-//     console.assert(callOrder.join(",") === "1,2,3", "correct execution order");
-//   }, 50);
-// }
+import { Next, Request, Response, Router } from "./index.ts";
+
+describe("Router middleware test", () => {
+  it("With global middleware", () => {
+    const router = new Router();
+    const mockResponse: Response = {};
+    const mockRequest: Request = {};
+    const callOrder: number[] = [];
+
+    const globalMiddleWare = (_: Request, __: Response, next: Next): void => {
+      callOrder.push(0);
+      next();
+    };
+
+    const firstMiddleWare = (_: Request, __: Response, next: Next): void => {
+      callOrder.push(1);
+      next();
+    };
+
+    router.use("*", globalMiddleWare);
+    router.use("/", firstMiddleWare);
+
+    router.get("/", mockRequest, mockResponse);
+    router.get("/first", mockRequest, mockResponse);
+
+    expect(callOrder).toEqual([0, 1, 0]);
+  });
+
+  it("Without calling next", () => {
+    const router = new Router();
+    const mockResponse: Response = {};
+    const mockRequest: Request = {};
+    const callOrder: number[] = [];
+
+    const globalMiddleWare = (_: Request, __: Response, next: Next): void => {
+      callOrder.push(0);
+      next();
+    };
+
+    const firstMiddleWare = (): void => {
+      callOrder.push(1);
+    };
+    const secondMiddleWare = (): void => {
+      callOrder.push(2);
+    };
+
+    router.use("*", globalMiddleWare);
+    router.use("/first", firstMiddleWare);
+    router.use("/second", secondMiddleWare);
+
+    router.get("/", mockRequest, mockResponse);
+    router.get("/first", mockRequest, mockResponse);
+
+    expect(callOrder).toEqual([0, 0, 1]);
+  });
+});
