@@ -46,15 +46,15 @@ export class Router implements IRouter {
   handle = (middlewares: Middleware[], req: Request, res: Response): void => {
     let index = 0;
 
-    const next = (): void => {
-      index += 1;
-      dispatch();
-    };
-
     const dispatch = (): void => {
       if (middlewares.length > index) {
         middlewares[index]?.(req, res, next);
       }
+    };
+
+    const next = (): void => {
+      index += 1;
+      dispatch();
     };
 
     dispatch();
