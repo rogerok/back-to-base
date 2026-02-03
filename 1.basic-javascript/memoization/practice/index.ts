@@ -1,31 +1,34 @@
-type Callback<T> = (...args: T[]) => T;
-let cache: unknown = null;
-let callback: Callback<any> | null = null;
+type Callback<Args, Return> = (...args: Args[]) => Return;
 
-export const memoize = <T>(cb: (...args: T[]) => T): T => {
-  if (callback !== cb) {
-    callback = null;
-    cache = null;
-    callback = cb as Callback<T>;
-    cache = cb();
-  }
+export function memoize<Args, Return>(cb: Callback<Args, Return>): Callback<Args, Return> {
+  const result: Record<string, Return> = {};
 
-  return cache as T;
+  const func = function wrapper(...args: Args[]): Return {
+    const argKeys = JSON.stringify(args);
+    if (argKeys in result) {
+      return result[argKeys];
+    } else {
+      const callResult = cb(...args);
+      result[argKeys] = callResult;
+      return callResult;
+    }
+  };
+
+  return func;
+}
+
+const calc = (num: number) => {
+  console.log("was called");
+  return num + num;
 };
 
-const call = (): string => {
-  console.log(" i am was called");
-  return "1234";
-};
+const fn = memoize(calc);
 
-const call2 = (): string => {
-  console.log(" i am was called 2");
-  return "1234";
-};
-
-memoize<string>(call);
-memoize<string>(call);
-memoize<string>(call2);
-memoize<string>(call2);
-memoize<string>(call2);
-// memoize<string>(call2);
+fn(3, 2);
+fn(2, 2);
+fn(2, 2);
+fn(2, 2);
+fn(2, 2);
+fn(2, 2);
+fn(2, 2);
+fn(2, 2);
