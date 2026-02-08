@@ -23,6 +23,12 @@ interface IRouter {
 const BasePath = "/";
 const GlobalPath = "*";
 
+/*
+builder pattern
+посмотреть в toastify
+find-may-way изучить
+ */
+
 export class Router implements IRouter {
   basePath: TPath;
   middlewareMap: MiddlewareMap = {};
