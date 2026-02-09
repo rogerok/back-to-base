@@ -29,35 +29,39 @@ function parseObject(objKey: string, obj: Record<string, unknown>): string {
     }
 
     const v = obj[key];
+    const withIndex = getIndices(objKey, key);
 
     if (Array.isArray(v)) {
-      acc += isFirstIdx(idx) ? parseArray(key, v) : addAmpersand(parseArray(key, v));
+      acc += isFirstIdx(idx) ? parseArray(withIndex, v) : addAmpersand(parseArray(withIndex, v));
       return acc;
     }
 
     if (isObject(v)) {
-      const withIndex = getIndices(objKey, key);
-
-      acc += `${withIndex}${parseObject(key, v)}`;
-
+      acc += parseObject(withIndex, v);
       return acc;
     }
 
-    const withIndex = getIndices(objKey, key);
-
-    acc += isFirstIdx(idx)
-      ? `${withIndex}=${String(v)}`
-      : addAmpersand(`${withIndex}=${String(v)}`);
+    if (isNonNullishPrimitive(v)) {
+      acc += isFirstIdx(idx)
+        ? `${withIndex}=${String(v)}`
+        : addAmpersand(`${withIndex}=${String(v)}`);
+    }
 
     return acc;
   }, "");
 }
 
-const parseArray = (key: string, val: unknown[]): string => {
-  return val.reduce<string>((acc, item, idx) => {
-    const k = makeKey(idx, key);
+const parseArray = (objKey: string, val: unknown[]): string => {
+  return val.reduce<string>((acc, v, idx) => {
+    const k = makeKey(idx, objKey);
+    const withIndex = getIndices(objKey, String(idx));
 
-    acc += `${k}${String(item)}`;
+    if (isObject(v)) {
+      acc += parseObject(withIndex, v);
+      return acc;
+    }
+
+    acc += `${k}${String(v)}`;
 
     return acc;
   }, "");
@@ -73,10 +77,11 @@ export const buildQueryString = (obj: Record<string, unknown>) => {
 
     const v = obj[key];
 
-    let queryString = "";
+    let queryString = makeKey(idx, key);
 
     if (Array.isArray(v)) {
       queryString = isFirstIdx(idx) ? parseArray(key, v) : addAmpersand(parseArray(key, v));
+      // queryString = parseArray(key, v);
     }
 
     if (isObject(v)) {
@@ -85,12 +90,11 @@ export const buildQueryString = (obj: Record<string, unknown>) => {
     }
 
     if (v instanceof Date) {
-      queryString = `${makeKey(idx, key)}${v.toISOString()}`;
+      queryString += v.toISOString();
     }
 
     if (isNonNullishPrimitive(v)) {
-      acc += `${makeKey(idx, key)}${String(v)}`;
-      return acc;
+      queryString += String(v);
     }
 
     acc += queryString;
