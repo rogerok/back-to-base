@@ -1,4 +1,4 @@
-import { buildQueryString } from "./index-2.ts";
+import { buildQueryString } from "./index.ts";
 
 describe("buildQueryString (advanced)", () => {
   test("serializes flat primitives", () => {
