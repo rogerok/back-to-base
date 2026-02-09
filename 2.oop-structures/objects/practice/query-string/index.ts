@@ -55,7 +55,7 @@ const parseArray = (objKey: string, val: unknown[]): string => {
     const withIndex = getIndices(objKey, String(idx));
 
     if (isObject(v)) {
-      acc += parseObject(withIndex, v);
+      acc += buildQueryString(v, withIndex);
       return acc;
     }
 
@@ -69,7 +69,7 @@ const parseArray = (objKey: string, val: unknown[]): string => {
   }, "");
 };
 
-export const buildQueryString = (obj: Record<string, unknown>) => {
+export const buildQueryString = (obj: Record<string, unknown>, prefix?: string) => {
   const keys = getSortedKeys(obj);
 
   return keys.reduce((acc, key, idx) => {
@@ -79,14 +79,14 @@ export const buildQueryString = (obj: Record<string, unknown>) => {
 
     const v = obj[key];
 
-    let queryString = makeKey(idx, key);
+    let queryString = prefix ? makeKey(idx, getIndices(prefix, key)) : makeKey(idx, key);
 
     if (Array.isArray(v)) {
       queryString = isFirstIdx(idx) ? parseArray(key, v) : addAmpersand(parseArray(key, v));
     }
 
     if (isObject(v)) {
-      const parsedObj = parseObject(key, v);
+      const parsedObj = buildQueryString(v, key);
       queryString = isFirstIdx(idx) ? parsedObj : addAmpersand(parsedObj);
     }
 
