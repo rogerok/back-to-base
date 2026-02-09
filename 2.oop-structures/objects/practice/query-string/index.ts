@@ -53,7 +53,6 @@ function parseObject(objKey: string, obj: Record<string, unknown>): string {
 
 const parseArray = (objKey: string, val: unknown[]): string => {
   return val.reduce<string>((acc, v, idx) => {
-    const k = makeKey(idx, objKey);
     const withIndex = getIndices(objKey, String(idx));
 
     if (isObject(v)) {
@@ -61,7 +60,11 @@ const parseArray = (objKey: string, val: unknown[]): string => {
       return acc;
     }
 
-    acc += `${k}${String(v)}`;
+    if (Array.isArray(v)) {
+      acc += parseArray(withIndex, v);
+    }
+
+    acc += `${makeKey(idx, objKey)}${String(v)}`;
 
     return acc;
   }, "");
@@ -81,7 +84,6 @@ export const buildQueryString = (obj: Record<string, unknown>) => {
 
     if (Array.isArray(v)) {
       queryString = isFirstIdx(idx) ? parseArray(key, v) : addAmpersand(parseArray(key, v));
-      // queryString = parseArray(key, v);
     }
 
     if (isObject(v)) {
