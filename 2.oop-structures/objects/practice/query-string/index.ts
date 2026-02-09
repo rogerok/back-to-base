@@ -1,7 +1,19 @@
 const isFirstIdx = (idx: number): boolean => idx === 0;
 const addAmpersand = (str: string): string => `&${str}`;
 const makeKey = (idx: number, key: string): string =>
-  idx === 0 ? `${key}=` : `${addAmpersand(key)}=`;
+  isFirstIdx(idx) ? `${key}=` : `${addAmpersand(key)}=`;
+
+const isNonNullishPrimitive = (v: unknown) => {
+  return (
+    typeof v === "string" ||
+    typeof v === "number" ||
+    typeof v === "boolean" ||
+    typeof v === "symbol" ||
+    typeof v === "bigint"
+  );
+};
+
+const getIndices = (prefix: string, key: string): string => `${prefix}[${key}]`;
 
 const getSortedKeys = (obj: Record<string, unknown>): string[] => Object.keys(obj).sort();
 
@@ -23,9 +35,19 @@ function parseObject(objKey: string, obj: Record<string, unknown>): string {
       return acc;
     }
 
+    if (isObject(v)) {
+      const withIndex = getIndices(objKey, key);
+
+      acc += `${withIndex}${parseObject(key, v)}`;
+
+      return acc;
+    }
+
+    const withIndex = getIndices(objKey, key);
+
     acc += isFirstIdx(idx)
-      ? `${objKey}[${key}]=${String(v)}`
-      : addAmpersand(`${objKey}[${key}]=${String(v)}`);
+      ? `${withIndex}=${String(v)}`
+      : addAmpersand(`${withIndex}=${String(v)}`);
 
     return acc;
   }, "");
@@ -51,18 +73,28 @@ export const buildQueryString = (obj: Record<string, unknown>) => {
 
     const v = obj[key];
 
+    let queryString = "";
+
     if (Array.isArray(v)) {
-      acc += isFirstIdx(idx) ? parseArray(key, v) : addAmpersand(parseArray(key, v));
-      return acc;
+      queryString = isFirstIdx(idx) ? parseArray(key, v) : addAmpersand(parseArray(key, v));
     }
 
     if (isObject(v)) {
       const parsedObj = parseObject(key, v);
-      acc += isFirstIdx(idx) ? parsedObj : addAmpersand(parsedObj);
+      queryString = isFirstIdx(idx) ? parsedObj : addAmpersand(parsedObj);
+    }
+
+    if (v instanceof Date) {
+      queryString = `${makeKey(idx, key)}${v.toISOString()}`;
+    }
+
+    if (isNonNullishPrimitive(v)) {
+      acc += `${makeKey(idx, key)}${String(v)}`;
       return acc;
     }
 
-    acc += `${makeKey(idx, key)}${String(v)}`;
+    acc += queryString;
+
     return acc;
   }, "");
 };
