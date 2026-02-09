@@ -19,7 +19,7 @@ const getSortedKeys = (obj: Record<string, unknown>): string[] => Object.keys(ob
 export const isObject = (v: unknown): v is Record<string, unknown> =>
   Object.prototype.toString.call(v) === "[object Object]";
 
-const parseArray = (objKey: string, val: unknown[]): string => {
+const parseArray = (val: unknown[], objKey: string): string => {
   return val.reduce<string>((acc, v, idx) => {
     const withIndex = getIndices(objKey, String(idx));
 
@@ -29,11 +29,11 @@ const parseArray = (objKey: string, val: unknown[]): string => {
     }
 
     if (Array.isArray(v)) {
-      acc += parseArray(withIndex, v);
+      acc += parseArray(v, withIndex);
       return acc;
     }
 
-    acc += `${makeKey(idx, objKey)}${String(v)}`;
+    acc += isFirstIdx(idx) ? `${objKey}=${String(v)}` : `&${objKey}=${String(v)}`;
 
     return acc;
   }, "");
@@ -48,23 +48,23 @@ export const buildQueryString = (obj: Record<string, unknown>, prefix?: string) 
     }
 
     const v = obj[key];
-
-    let queryString = prefix ? makeKey(idx, getIndices(prefix, key)) : makeKey(idx, key);
+    const k = prefix ? getIndices(prefix, key) : key;
 
     if (Array.isArray(v)) {
-      queryString = isFirstIdx(idx) ? parseArray(key, v) : addAmpersand(parseArray(key, v));
+      acc += isFirstIdx(idx) ? parseArray(v, k) : addAmpersand(parseArray(v, k));
+      return acc;
     }
 
     if (isObject(v)) {
-      const parsedObj = buildQueryString(v, key);
-      queryString = isFirstIdx(idx) ? parsedObj : addAmpersand(parsedObj);
+      acc += buildQueryString(v, k);
+
+      return acc;
     }
 
     if (isNonNullishPrimitive(v)) {
-      queryString += String(v);
+      acc += makeKey(idx, k) + String(v);
+      return acc;
     }
-
-    acc += queryString;
 
     return acc;
   }, "");
