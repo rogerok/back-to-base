@@ -29,7 +29,7 @@ const parseArray = (val: unknown[], objKey: string): string => {
   }, "");
 };
 
-export const buildQueryString = (obj: Record<string, unknown>, prefix?: string) => {
+export const buildQueryString = (obj: Record<string, unknown>, prefix?: string): string => {
   const keys = Object.keys(obj).sort();
 
   return keys.reduce((acc, key, idx) => {
