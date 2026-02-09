@@ -8,7 +8,6 @@ const isNonNullishPrimitive = (v: unknown) => {
     typeof v === "string" ||
     typeof v === "number" ||
     typeof v === "boolean" ||
-    typeof v === "symbol" ||
     typeof v === "bigint"
   );
 };
