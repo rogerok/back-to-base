@@ -30,6 +30,7 @@ const parseArray = (objKey: string, val: unknown[]): string => {
 
     if (Array.isArray(v)) {
       acc += parseArray(withIndex, v);
+      return acc;
     }
 
     acc += `${makeKey(idx, objKey)}${String(v)}`;
@@ -57,10 +58,6 @@ export const buildQueryString = (obj: Record<string, unknown>, prefix?: string) 
     if (isObject(v)) {
       const parsedObj = buildQueryString(v, key);
       queryString = isFirstIdx(idx) ? parsedObj : addAmpersand(parsedObj);
-    }
-
-    if (v instanceof Date) {
-      queryString += v.toISOString();
     }
 
     if (isNonNullishPrimitive(v)) {
