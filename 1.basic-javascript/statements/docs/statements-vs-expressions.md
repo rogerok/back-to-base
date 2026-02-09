@@ -1,6 +1,7 @@
 Sources:
 [Theory: Expressions vs. Statements](https://hexlet.io/courses/intro_to_programming/lessons/expressions/theory_unit)
 [MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements#difference_between_statements_and_declarations)
+
 ## Expression
 
 **Expression** - is any valid unit of code that _resolves_ to a value.
@@ -17,6 +18,7 @@ Below `getAnswer()` - a function call - is another expression.This call will ret
 const y = getAnswer();
 ```
 
-## Statements 
+## Statements
+
 Statement is an instruction, an action. For example `if`, `while`, `for`
 All those are statements, because they perform actions and control actions, but don't become values
