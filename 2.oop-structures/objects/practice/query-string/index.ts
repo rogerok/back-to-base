@@ -1,19 +1,16 @@
 import {
   addAmpersand,
+  formatParam,
+  formatParamKey,
   getIndices,
   isFirstIdx,
   isNonNullishPrimitive,
+  isNullish,
   isObject,
-  makeKey,
+  joinWithAmpersand,
 } from "./helpers.ts";
 
 // TODO: should i use encodeURIComponent?
-
-/*
- * Think about returning arr ["a=1", "b=1"] and joining them with ampersand
- *
- *
- * */
 
 const parseArray = (val: unknown[], objKey: string): string[] => {
   return val.reduce<string[]>((acc, v, idx) => {
@@ -29,7 +26,10 @@ const parseArray = (val: unknown[], objKey: string): string[] => {
       return acc;
     }
 
-    acc.push(`${objKey}=${String(v)}`);
+    if (isNonNullishPrimitive(v) || isNullish(v)) {
+      acc.push(formatParam(objKey, String(v)));
+      return acc;
+    }
 
     return acc;
   }, []);
@@ -39,28 +39,23 @@ export const buildQueryString = (obj: Record<string, unknown>, prefix?: string):
   const keys = Object.keys(obj).sort();
 
   return keys.reduce((acc, key, idx) => {
-    if (obj[key] === undefined) {
-      return acc;
-    }
-
     const v = obj[key];
     const k = prefix ? getIndices(prefix, key) : key;
 
     if (Array.isArray(v)) {
       acc += isFirstIdx(idx)
-        ? parseArray(v, k).join("&")
-        : addAmpersand(parseArray(v, k).join("&"));
+        ? joinWithAmpersand(parseArray(v, k))
+        : addAmpersand(joinWithAmpersand(parseArray(v, k)));
       return acc;
     }
 
     if (isObject(v)) {
       acc += buildQueryString(v, k);
-
       return acc;
     }
 
-    if (isNonNullishPrimitive(v) || v === null) {
-      acc += makeKey(idx, k) + String(v);
+    if (isNonNullishPrimitive(v) || isNullish(v)) {
+      acc += formatParamKey(idx, k) + String(v);
       return acc;
     }
 
