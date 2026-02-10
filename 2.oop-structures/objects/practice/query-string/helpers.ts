@@ -1,11 +1,4 @@
-export const isFirstIdx = (idx: number): boolean => idx === 0;
-export const addAmpersand = (str: string): string => `&${str}`;
-export const formatParamKey = (idx: number, key: string): string =>
-  isFirstIdx(idx) ? `${key}=` : `${addAmpersand(key)}=`;
-
 export const formatParam = (key: string, value: string): string => `${key}=${value}`;
-
-export const joinWithAmpersand = (arr: string[]): string => arr.join("&");
 
 export const isNonNullishPrimitive = (v: unknown) => {
   return (
