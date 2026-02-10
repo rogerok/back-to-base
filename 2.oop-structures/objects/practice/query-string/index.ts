@@ -9,6 +9,12 @@ import {
 
 // TODO: should i use encodeURIComponent?
 
+/*
+ * Think about returning arr ["a=1", "b=1"] and joining them with ampersand
+ *
+ *
+ * */
+
 const parseArray = (val: unknown[], objKey: string): string => {
   return val.reduce<string>((acc, v, idx) => {
     const withIndex = getIndices(objKey, String(idx));
@@ -51,7 +57,7 @@ export const buildQueryString = (obj: Record<string, unknown>, prefix?: string):
       return acc;
     }
 
-    if (isNonNullishPrimitive(v)) {
+    if (isNonNullishPrimitive(v) || v === null) {
       acc += makeKey(idx, k) + String(v);
       return acc;
     }
