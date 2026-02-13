@@ -151,7 +151,7 @@ class SubtractHandler implements ArithmeticHandler {
   execute = (first: number, second: number): number => first - second;
 }
 
-export const arithmeticStrategy = (operator: ArithmeticOperator) => {
+export const arithmeticStrategy = (operator: ArithmeticOperator): ArithmeticHandler => {
   const handlers = {
     [ArithmeticOperatorTokens.Add]: AddHandler,
     [ArithmeticOperatorTokens.Divide]: DivideHandler,
