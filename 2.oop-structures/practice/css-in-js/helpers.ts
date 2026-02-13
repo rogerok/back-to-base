@@ -27,6 +27,8 @@ export const firstCharToUpperCase = (s: string): string => s.charAt(0).toUpperCa
 export const sliceBeforeColon = (s: string): string => s.slice(0, s.indexOf(colon));
 export const sliceAfterColon = (s: string): string => s.slice(s.lastIndexOf(colon) + 1);
 export const makePxString = (s: string): string => `${s}${pxString}`;
+export const keepLetters = (value: string): string => value.replace(/[^a-z]/gi, "");
+export const removeLetters = (value: string): string => value.replace(/[a-z]/gi, "");
 
 export const kebabCaseToCamelCase = (s: string): string => {
   return splitByDash(s)
@@ -64,34 +66,40 @@ export const isMathOperator = (s: string): s is ArithmeticOperator => s in Opera
 const isNumberWithUnit = (s: string): boolean => /^(\d+(?:\.\d+)?)([a-z%]+)$/i.test(s);
 
 export const processCalcString = (
-  tokens: string[],
+  calcTokens: string[],
   parseToken: (token: string) => string,
 ): string => {
-  const joined = tokens.join(whitespace);
-  const withoutCalc = joined
-    .slice(joined.indexOf(Parentheses.open) + 1, joined.lastIndexOf(Parentheses.close))
+  const calcExpression = calcTokens.join(whitespace);
+
+  const innerExpression = calcExpression
+    .slice(
+      calcExpression.indexOf(Parentheses.open) + 1,
+      calcExpression.lastIndexOf(Parentheses.close),
+    )
     .split(whitespace);
 
-  const next = withoutCalc.map((item) => parseToken(item.replace(",", emptyString)));
+  const parsedTokens = innerExpression.map((token) =>
+    parseToken(token.replace(comma, emptyString)),
+  );
 
-  const units = next.map((item) => item.replace(/[^a-z]/gi, emptyString)).filter(Boolean);
+  const extractedUnits = parsedTokens.map(keepLetters).filter(Boolean);
 
-  const mathExpression = next.map((item) => item.replace(/[a-zA-Z]/g, emptyString)).join("");
+  const numericExpression = parsedTokens.map(removeLetters).join(emptyString);
 
-  if (units.length) {
-    const unit = units.pop();
-    const isDifferentUnit = units.some((u) => u !== unit);
+  if (extractedUnits.length) {
+    const referenceUnit = extractedUnits.pop();
+    const hasMixedUnits = extractedUnits.some((unit) => unit !== referenceUnit);
 
-    if (isDifferentUnit) {
-      throw new Error(tokens.join("") + " Units should not be different");
+    if (hasMixedUnits) {
+      throw new Error(calcTokens.join("") + " Units should not be mixed");
     }
 
-    if (unit) {
-      return String(eval(mathExpression)) + unit;
+    if (referenceUnit) {
+      return String(eval(numericExpression)) + referenceUnit;
     }
   }
 
-  return String(eval(mathExpression));
+  return String(eval(numericExpression));
 };
 
 // ==== Eval Helpers ====
