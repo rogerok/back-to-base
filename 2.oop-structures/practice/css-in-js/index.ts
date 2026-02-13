@@ -1,6 +1,6 @@
 import { match, P } from "ts-pattern";
 
-import { pxString, whitespace, zeroString } from "./constants.ts";
+import { emptyString, Parentheses, pxString, whitespace, zeroString } from "./constants.ts";
 import {
   isCalcString,
   isCssVariable,
@@ -72,10 +72,21 @@ export const cssTagged = (
 
   const parseTokens = (tokens: string[]): string => {
     const isCalcTokens = isCalcString(tokens[0]);
-    const joined = tokens.join(" ");
-    const withoutCalc = joined.slice(joined.indexOf("(") + 1, joined.lastIndexOf(")")).split(" ");
 
-    console.log(withoutCalc.map((item) => parseToken(item.replace(",", ""))));
+    const joined = tokens.join(whitespace);
+    const withoutCalc = joined
+      .slice(joined.indexOf(Parentheses.open) + 1, joined.lastIndexOf(Parentheses.close))
+      .split(whitespace);
+    const next = withoutCalc.map((item) => parseToken(item.replace(",", emptyString)));
+
+    const units = next.map((item) => item.replace(/[^a-z]/gi, emptyString)).filter(Boolean);
+
+    const unit = units.pop();
+
+    const isDifferentUnit = units.some((u) => u !== unit);
+
+    const mathExpression = next.map((item) => item.replace(/[a-zA-Z]/g, emptyString)).join("");
+    console.log(eval(mathExpression));
 
     return tokens
       .map((token) =>
@@ -107,7 +118,12 @@ export const cssTagged = (
 //   more2: calc(${theme.spacing}px - ${theme.spacing}px + ${theme.spacing}px);
 //
 // `;
-
 const resp = cssTagged`
-  height: calc(10px - 200px + 30px * 10px);
+
+  more2: calc(${theme.spacing} - ${theme.spacing}px + ${theme.spacing}px);
+
 `;
+
+// const resp = cssTagged`
+//   height: calc(10px - 200px + 30px * 10px);
+// `;
