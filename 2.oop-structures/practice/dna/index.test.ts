@@ -5,7 +5,7 @@ import {
   encodeNucleotide,
   NucleotideMap,
   NucleotideValues,
-} from "./index.js";
+} from "./index.ts";
 
 describe("DNA task; encodeNucleotide fn", () => {
   it("encode Adenine; should return 0", () => {

@@ -1,5 +1,6 @@
 import { match, P } from "ts-pattern";
 
+import { pxString, whitespace, zeroString } from "./constants.ts";
 import {
   isCalcString,
   isCssVariable,
@@ -10,15 +11,12 @@ import {
   kebabCaseToCamelCase,
   makePxString,
   normalizeCommaTokens,
-  pxString,
   removeNewLines,
   sliceAfterColon,
   sliceBeforeColon,
   splitBySemicolon,
   splitBySpace,
   trimString,
-  whitespace,
-  zeroString,
 } from "./helpers.ts";
 import { theme } from "./theme.ts";
 
