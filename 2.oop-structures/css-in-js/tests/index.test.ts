@@ -1,5 +1,5 @@
-import { cssTagged } from "./index.ts";
-import { color, space, ThemeType } from "./theme.ts";
+import { cssTagged } from "../index.ts";
+import { color, space, ThemeType } from "../theme.ts";
 
 /*
   Doesn't work

@@ -11,6 +11,7 @@ export const splitByDash = (s: string): string[] => s.split(dash);
 export const splitBySemicolon = (s: string): string[] => s.split(semicolon);
 export const splitBySpace = (s: string): string[] => s.split(whitespace);
 export const trimString = (s: string): string => s.trim();
+export const removeWhitespace = (s: string): string => s.replaceAll(whitespace, "");
 
 export const firstCharToUpperCase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 

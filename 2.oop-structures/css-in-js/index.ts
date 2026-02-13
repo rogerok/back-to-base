@@ -104,8 +104,7 @@ export const cssTagged = (
 // const resp = cssTagged`
 //   height: calc(100% - ${theme.spacing}px);
 //   width: calc(100px - ${theme.spacing}px);
-//   widthClear: calc(100px - 50px);
-//   widthWithoutPx: calc(100 - 50);
+//   widthClear: calc(100px - 50px);//   widthWithoutPx: calc(100 - 50);
 //   more: calc(${theme.spacing}px - ${theme.spacing}px);
 //   more2: calc(${theme.spacing}px - ${theme.spacing}px + ${theme.spacing}px);
 //
