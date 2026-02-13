@@ -94,8 +94,6 @@ export const evaluator = (expression: string): number => {
   const stack: number[] = [];
   const rpn = parseToRpn(expression);
 
-  console.log(rpn);
-
   for (let i = 0; i < rpn.length; i++) {
     const current = rpn[i];
 
@@ -116,5 +114,3 @@ export const evaluator = (expression: string): number => {
 
   return stack[0];
 };
-
-evaluator("(2+3)*4");
