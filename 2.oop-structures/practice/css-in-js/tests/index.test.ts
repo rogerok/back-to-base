@@ -1,6 +1,3 @@
-import { cssTagged } from "../index.ts";
-import { color, space, ThemeType } from "../theme.ts";
-
 /*
   Doesn't work
   height: calc(100% - ${space}px);
@@ -8,6 +5,9 @@ import { color, space, ThemeType } from "../theme.ts";
   max-width: ${space * 10}px;
 
  */
+
+import { cssTagged } from "../index.ts";
+import { color, space, ThemeType } from "../theme.ts";
 
 const expectedStyleObject = {
   alignItems: "center",

@@ -1,16 +1,21 @@
 import { match, P } from "ts-pattern";
 
-import { emptyString, Parentheses, pxString, whitespace, zeroString } from "./constants.ts";
+import {
+  isNumericString,
+  makePxString,
+  pxString,
+  zeroString,
+} from "../../../1.basic-javascript/tagged-templates/practice/helpers.ts";
+import { whitespace } from "./constants.ts";
 import {
   isCalcString,
   isCssVariable,
   isFunction,
   isNumber,
-  isNumericString,
   isString,
   kebabCaseToCamelCase,
-  makePxString,
   normalizeCommaTokens,
+  processCalcString,
   removeNewLines,
   sliceAfterColon,
   sliceBeforeColon,
@@ -57,7 +62,6 @@ export const cssTagged = (
   const declarations = templateToArray(strings);
 
   const parsedDeclarations = parseDeclarations(declarations);
-
   const interpolationQueue = [...args];
 
   const parseToken = (token: string): string => {
@@ -72,33 +76,15 @@ export const cssTagged = (
 
   const parseTokens = (tokens: string[]): string => {
     const isCalcTokens = isCalcString(tokens[0]);
+    if (isCalcTokens) {
+      try {
+        return processCalcString(tokens, parseToken);
+      } catch (error) {
+        console.error(error);
+      }
+    }
 
-    const joined = tokens.join(whitespace);
-    const withoutCalc = joined
-      .slice(joined.indexOf(Parentheses.open) + 1, joined.lastIndexOf(Parentheses.close))
-      .split(whitespace);
-    const next = withoutCalc.map((item) => parseToken(item.replace(",", emptyString)));
-
-    const units = next.map((item) => item.replace(/[^a-z]/gi, emptyString)).filter(Boolean);
-
-    const unit = units.pop();
-
-    const isDifferentUnit = units.some((u) => u !== unit);
-
-    const mathExpression = next.map((item) => item.replace(/[a-zA-Z]/g, emptyString)).join("");
-    console.log(eval(mathExpression));
-
-    return tokens
-      .map((token) =>
-        match(token)
-          .returnType<string>()
-          .with(zeroString, (v) => v)
-          .with(pxString, () => makePxString(processArgument(interpolationQueue.shift())))
-          .with(P.string.length(0), () => processArgument(interpolationQueue.shift()))
-          .with(P.when(isNumericString), (v) => makePxString(v))
-          .otherwise((v) => v),
-      )
-      .join(whitespace);
+    return tokens.map(parseToken).join(whitespace);
   };
 
   return parsedDeclarations.reduce<Record<string, string>>((acc, item) => {
@@ -110,20 +96,18 @@ export const cssTagged = (
   }, {});
 };
 
-// const resp = cssTagged`
-//   height: calc(100% - ${theme.spacing}px);
-//   width: calc(100px - ${theme.spacing}px);
-//   widthClear: calc(100px - 50px);//   widthWithoutPx: calc(100 - 50);
-//   more: calc(${theme.spacing}px - ${theme.spacing}px);
-//   more2: calc(${theme.spacing}px - ${theme.spacing}px + ${theme.spacing}px);
-//
-// `;
 const resp = cssTagged`
-
-  more2: calc(${theme.spacing} - ${theme.spacing}px + ${theme.spacing}px);
+  height: calc(100% - ${theme.spacing});
+  width: calc(100px - ${theme.spacing}px);
+  widthClear: calc(100rem - 50rem);
+  widthWithoutPx: calc(100 - 50);
+  more: calc(${theme.spacing}px - ${theme.spacing}px);
+  more2: calc(${theme.spacing}px - ${theme.spacing}px + ${theme.spacing}px);
 
 `;
 
 // const resp = cssTagged`
-//   height: calc(10px - 200px + 30px * 10px);
+//   height: calc(100px - ${theme.spacing}px);
 // `;
+
+console.log(resp);

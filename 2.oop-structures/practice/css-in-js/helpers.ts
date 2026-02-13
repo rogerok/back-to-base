@@ -65,6 +65,36 @@ export const isCssVariable = (s: string): boolean => s.startsWith(`${dash}${dash
 
 export const isCalcString = (s: string): boolean => s.startsWith("calc");
 
+export const processCalcString = (
+  tokens: string[],
+  parseToken: (token: string) => string,
+): string => {
+  const joined = tokens.join(whitespace);
+  const withoutCalc = joined
+    .slice(joined.indexOf(Parentheses.open) + 1, joined.lastIndexOf(Parentheses.close))
+    .split(whitespace);
+  const next = withoutCalc.map((item) => parseToken(item.replace(",", emptyString)));
+
+  const units = next.map((item) => item.replace(/[^a-z%]/gi, emptyString)).filter(Boolean);
+
+  const mathExpression = next.map((item) => item.replace(/[a-zA-Z]/g, emptyString)).join("");
+
+  if (units.length) {
+    const unit = units.pop();
+    const isDifferentUnit = units.some((u) => u !== unit);
+
+    if (isDifferentUnit) {
+      throw new Error(tokens.join("") + " Units should not be different");
+    }
+
+    if (unit) {
+      return String(eval(mathExpression)) + unit;
+    }
+  }
+
+  return String(eval(mathExpression));
+};
+
 // ==== Eval Helpers ====
 
 export const isOpenParenthesis = (s: string): s is OpenParenthesis => s === Parentheses.open;
