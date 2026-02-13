@@ -85,19 +85,17 @@ export const parseToRpn = (expression: string): string => {
 
   return operators.length ? rpn.concat(operators.reverse().join("")) : rpn;
 };
-// console.log(parseToRpn("8 - (4 + 6) / 2 - 1"));
-console.log(parseToRpn("3 + 2 * 4"));
 
 export const evaluator = (expression: string): number => {
   const stack: number[] = [];
   const rpn = parseToRpn(expression);
-  console.log(rpn);
 
   for (let i = 0; i < rpn.length; i++) {
     const current = rpn[i];
 
     if (isNumericString(current)) {
       stack.push(Number(current));
+      continue;
     }
 
     if (isMathOperator(current)) {
@@ -105,12 +103,10 @@ export const evaluator = (expression: string): number => {
       const first = stack.pop();
 
       if (isNumber(second) && isNumber(first)) {
-        stack.push(arithmeticStrategy(current).execute(second, first));
+        stack.push(arithmeticStrategy(current).execute(first, second));
       }
     }
   }
 
   return stack[0];
 };
-// console.log(evaluator("8 - (4 + 6) / 2 - 1"));
-console.log(evaluator("3 + 2 * 4 - 1"));
