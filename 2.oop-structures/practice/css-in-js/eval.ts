@@ -3,6 +3,8 @@ Shunting Yard Algorithm
 https://www.youtube.com/watch?v=XozvvM-7XHg
  */
 
+// TODO: implement exponent handling
+
 import { Parentheses } from "./constants.ts";
 import {
   arithmeticStrategy,
@@ -38,8 +40,10 @@ export const parseToRpn = (expression: string): string => {
 
     if (isCloseParenthesis(current)) {
       const idx = operators.indexOf(Parentheses.open);
-      if (idx) {
+
+      if (idx >= 0) {
         const s = operators.splice(idx, operators.length).join("").slice(1);
+
         rpn += s;
       }
       continue;
@@ -90,6 +94,8 @@ export const evaluator = (expression: string): number => {
   const stack: number[] = [];
   const rpn = parseToRpn(expression);
 
+  console.log(rpn);
+
   for (let i = 0; i < rpn.length; i++) {
     const current = rpn[i];
 
@@ -110,3 +116,5 @@ export const evaluator = (expression: string): number => {
 
   return stack[0];
 };
+
+evaluator("(2+3)*4");
