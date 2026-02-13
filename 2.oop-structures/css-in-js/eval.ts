@@ -78,14 +78,14 @@ export const parseToRpn = (expression: string): string => {
 
     if (isOpenParenthesis(current)) {
       operators.push(current);
-
       continue;
     }
 
     if (isCloseParenthesis(current)) {
       const idx = operators.indexOf("(");
       if (idx) {
-        operators.splice(idx, operators.length);
+        const s = operators.splice(idx, operators.length).join("").slice(1);
+        rpn += s;
       }
       continue;
     }
@@ -97,6 +97,11 @@ export const parseToRpn = (expression: string): string => {
       }
 
       const lastItem = getArrLastItem(operators);
+      const isLastItemMathOperator = isMathOperator(lastItem);
+      if (!isLastItemMathOperator) {
+        operators.push(current);
+        continue;
+      }
 
       let equalOrLower = isMathOperator(lastItem)
         ? isEqualOrLowerPriorityOperator(current, lastItem)
@@ -104,7 +109,6 @@ export const parseToRpn = (expression: string): string => {
 
       if (equalOrLower) {
         while (equalOrLower) {
-          console.log("ebash");
           rpn += operators.pop() ?? "";
           const last = getArrLastItem(operators);
           equalOrLower = isMathOperator(last)
@@ -115,11 +119,9 @@ export const parseToRpn = (expression: string): string => {
         continue;
       }
 
-      const higherOrLower = isMathOperator(lastItem)
-        ? isEqualOrLowerPriorityOperator(current, lastItem)
-        : false;
+      const higher = isMathOperator(lastItem) ? isHigherPriorityOperator(current, lastItem) : false;
 
-      if (higherOrLower) {
+      if (higher) {
         operators.push(current);
       }
     }
@@ -127,8 +129,7 @@ export const parseToRpn = (expression: string): string => {
 
   return operators.length ? rpn.concat(operators.join("")) : rpn;
 };
-// console.log(parseToRpn("8 - (4 + 6) / 2 - 1"));
-// console.log(parseToRpn("(4 + 6)"));
+console.log(parseToRpn("8 - (4 + 6) / 2 - 1"));
 console.log(parseToRpn("3 + 2 * 4 - 1"));
 
 export const evaluator = (str: string): number => {
