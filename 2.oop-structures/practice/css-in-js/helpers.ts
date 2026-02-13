@@ -32,6 +32,8 @@ export const kebabCaseToCamelCase = (s: string): string => {
 };
 export const removeNewLines = (s: string): string => s.replace(/\n/gi, emptyString);
 
+const isNumberWithUnit = (s: string): boolean => /^(\d+(?:\.\d+)?)([a-z%]+)$/i.test(s);
+
 export const sliceBeforeColon = (s: string): string => s.slice(0, s.indexOf(colon));
 export const sliceAfterColon = (s: string): string => s.slice(s.lastIndexOf(colon) + 1);
 
@@ -73,9 +75,10 @@ export const processCalcString = (
   const withoutCalc = joined
     .slice(joined.indexOf(Parentheses.open) + 1, joined.lastIndexOf(Parentheses.close))
     .split(whitespace);
+
   const next = withoutCalc.map((item) => parseToken(item.replace(",", emptyString)));
 
-  const units = next.map((item) => item.replace(/[^a-z%]/gi, emptyString)).filter(Boolean);
+  const units = next.map((item) => item.replace(/[^a-z]/gi, emptyString)).filter(Boolean);
 
   const mathExpression = next.map((item) => item.replace(/[a-zA-Z]/g, emptyString)).join("");
 

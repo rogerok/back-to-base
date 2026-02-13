@@ -97,17 +97,16 @@ export const cssTagged = (
 };
 
 const resp = cssTagged`
-  height: calc(100% - ${theme.spacing});
-  width: calc(100px - ${theme.spacing}px);
+  height: calc(100px - ${theme.spacing}px);
+  width: calc(100% - ${theme.spacing}px);
   widthClear: calc(100rem - 50rem);
-  widthWithoutPx: calc(100 - 50);
+  widthWithoutPx: calc(100 - 50 + 10 / 2 * 3);
   more: calc(${theme.spacing}px - ${theme.spacing}px);
   more2: calc(${theme.spacing}px - ${theme.spacing}px + ${theme.spacing}px);
-
 `;
 
 // const resp = cssTagged`
-//   height: calc(100px - ${theme.spacing}px);
+//   height: calc(100rem - ${theme.spacing}rem);
 // `;
 
 console.log(resp);
