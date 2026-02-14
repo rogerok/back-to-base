@@ -80,8 +80,6 @@ export const processCalcString = (
       return removeLetters(token) ? token : INTERPOLATION_MARKER;
     });
 
-  console.log(innerExpression);
-
   const parsedTokens = innerExpression.map((token) =>
     parseToken(token.replace(comma, emptyString)),
   );
