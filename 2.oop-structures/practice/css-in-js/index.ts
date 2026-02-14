@@ -1,14 +1,6 @@
 import { match, P } from "ts-pattern";
 
-import {
-  INTERPOLATION_MARKER,
-  pxString,
-  space,
-  theme,
-  ThemeType,
-  whitespace,
-  zeroString,
-} from "./constants.ts";
+import { INTERPOLATION_MARKER, pxString, theme, whitespace, zeroString } from "./constants.ts";
 import {
   isCalcString,
   isCssVariable,
@@ -73,8 +65,8 @@ export const cssTagged = (
     return match(token)
       .returnType<string>()
       .with(zeroString, (v) => v)
-      .with(pxString, () => makePxString(processArgument(interpolationQueue.shift())))
       .with(INTERPOLATION_MARKER, () => processArgument(interpolationQueue.shift()))
+      .with(pxString, () => makePxString(processArgument(interpolationQueue.shift())))
       .with(P.when(isNumericString), (v) => makePxString(v))
       .otherwise((v) => v);
   };
@@ -82,7 +74,11 @@ export const cssTagged = (
   const parseTokens = (tokens: string[]): string => {
     const isCalcTokens = isCalcString(tokens[0]);
     if (isCalcTokens) {
-      return processCalcString(tokens, parseToken);
+      try {
+        return processCalcString(tokens, parseToken);
+      } catch (error) {
+        console.error(error);
+      }
     }
 
     return tokens.map(parseToken).join(whitespace);
@@ -97,8 +93,17 @@ export const cssTagged = (
   }, {});
 };
 
+// const resp = cssTagged`
+//   width: calc(100% - ${theme.spacing}%);
+//   min-height: ${(theme: ThemeType) => theme.spacing * 10}px;
+//   max-width: ${space * 10}px;
+// `;
+
+// const resp = cssTagged`
+//   max-width: ${space}rem;
+// `;
 const resp = cssTagged`
-  width: calc(100% - ${theme.spacing}%);
-  min-height: ${(theme: ThemeType) => theme.spacing * 10}px;
-  max-width: ${space * 10}px;
+ height: calc(100px - ${theme.spacing}px);
 `;
+
+console.log(resp);

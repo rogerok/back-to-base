@@ -32,8 +32,22 @@ export const kebabCaseToCamelCase = (s: string): string => {
     .join(emptyString);
 };
 
-export const normalizeCommaTokens = (s: string[]): string[] =>
-  s.reduce<string[]>((acc, s) => {
+export const normalizeCommaTokens = (s: string[]): string[] => {
+  if (isCalcString(s[0])) {
+    const arr = s.reduce<string[]>((acc, s) => {
+      if (s.startsWith(",")) {
+        acc.push(INTERPOLATION_MARKER, s.slice(1));
+        return acc;
+      }
+
+      acc.push(s);
+      return acc;
+    }, []);
+    console.log("after isCalcString", arr);
+    return arr;
+  }
+
+  return s.reduce<string[]>((acc, s) => {
     const firstChar = s.charAt(0);
     const isOneChar = s.length === 1;
 
@@ -42,12 +56,13 @@ export const normalizeCommaTokens = (s: string[]): string[] =>
     if (isComma && isOneChar) {
       acc.push(INTERPOLATION_MARKER);
     } else if (isComma && !isOneChar) {
-      acc.push(s.slice(1));
+      acc.push(INTERPOLATION_MARKER, s.slice(1));
     } else {
       acc.push(s);
     }
     return acc;
   }, []);
+};
 
 export const isString = (v: unknown): v is string => typeof v === "string";
 export const isNumber = (v: unknown): v is number => typeof v === "number";
@@ -65,28 +80,29 @@ export const processCalcString = (
   parseToken: (token: string) => string,
 ): string => {
   const calcExpression = calcTokens.join(whitespace);
+  console.log("calcExpression", calcExpression);
 
   const innerExpression = calcExpression
     .slice(
       calcExpression.indexOf(Parentheses.open) + 1,
       calcExpression.lastIndexOf(Parentheses.close),
     )
-    .split(whitespace)
-    .map((token) => {
-      if (token in ArithmeticOperatorTokens) {
-        return token;
-      }
+    .split(" ");
 
-      return removeLetters(token) ? token : INTERPOLATION_MARKER;
-    });
+  console.log("innerExpression", innerExpression);
 
-  const parsedTokens = innerExpression.map((token) =>
-    parseToken(token.replace(comma, emptyString)),
-  );
+  const parsedTokens = innerExpression.map(parseToken);
 
-  const extractedUnits = parsedTokens.map(keepLetters).filter(Boolean);
+  console.log("parsedTokens", parsedTokens);
+
+  const extractedUnits = parsedTokens
+    .map(keepLetters)
+    .filter(Boolean)
+    .filter((u) => u !== INTERPOLATION_MARKER);
 
   const numericExpression = parsedTokens.map(removeLetters).join(emptyString);
+
+  console.log(extractedUnits);
 
   if (extractedUnits.length) {
     const referenceUnit = extractedUnits.pop();
