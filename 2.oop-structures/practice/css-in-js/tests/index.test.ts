@@ -6,8 +6,8 @@
 
  */
 
+import { color, space, theme, ThemeType } from "../constants.ts";
 import { cssTagged } from "../index.ts";
-import { color, space, ThemeType } from "../theme.ts";
 
 const expectedStyleObject = {
   alignItems: "center",
@@ -148,6 +148,103 @@ describe("Tagged Template – big stress test (no calc, no math)", () => {
       transitionTimingFunction: "ease-in-out",
 
       width: "100%",
+    });
+  });
+});
+
+describe("Tagged Template – calc basic arithmetic", () => {
+  it("should evaluate subtraction with same unit (px)", () => {
+    expect(
+      cssTagged`
+        height: calc(100px - ${theme.spacing}px);
+      `,
+    ).toEqual({
+      height: "96px",
+    });
+  });
+
+  it("should evaluate subtraction with percent unit", () => {
+    expect(
+      cssTagged`
+        width: calc(100% - ${theme.spacing}%);
+      `,
+    ).toEqual({
+      width: "96%",
+    });
+  });
+
+  it("should evaluate rem arithmetic", () => {
+    expect(
+      cssTagged`
+        width: calc(100rem - 50rem);
+      `,
+    ).toEqual({
+      width: "50rem",
+    });
+  });
+
+  it("should evaluate pure numeric calc without unit", () => {
+    expect(
+      cssTagged`
+        width: calc(100 - 50 + 10 / 2 * 3);
+      `,
+    ).toEqual({
+      width: "65px",
+    });
+  });
+});
+
+describe("Tagged Template – calc with interpolation", () => {
+  it("should evaluate interpolation px subtraction", () => {
+    expect(
+      cssTagged`
+        height: calc(${theme.spacing}px - ${theme.spacing}px);
+      `,
+    ).toEqual({
+      height: "0px",
+    });
+  });
+
+  it("should evaluate chained interpolation math", () => {
+    expect(
+      cssTagged`
+        height: calc(${theme.spacing}px - ${theme.spacing}px + ${theme.spacing}px);
+      `,
+    ).toEqual({
+      height: "4px",
+    });
+  });
+});
+
+describe("Tagged Template – calc mixed units error", () => {
+  it("should throw if units are mixed", () => {
+    expect(
+      () =>
+        cssTagged`
+        width: calc(100px - 10rem);
+      `,
+    ).toThrow("calc(100px-10rem) Units should not be mixed");
+  });
+});
+
+describe("Tagged Template – calc precedence correctness", () => {
+  it("should respect operator precedence", () => {
+    expect(
+      cssTagged`
+        width: calc(2 + 3 * 4);
+      `,
+    ).toEqual({
+      width: "14px",
+    });
+  });
+
+  it("should respect parentheses", () => {
+    expect(
+      cssTagged`
+        width: calc((2 + 3) * 4);
+      `,
+    ).toEqual({
+      width: "20px",
     });
   });
 });

@@ -4,18 +4,14 @@ import {
   comma,
   dash,
   emptyString,
+  INTERPOLATION_MARKER,
   OperatorPrecedenceMap,
   Parentheses,
   pxString,
   semicolon,
   whitespace,
 } from "./constants.ts";
-import {
-  ArithmeticOperator,
-  CloseParenthesis,
-  OpenParenthesis,
-  OperatorPrecedence,
-} from "./types.ts";
+import { ArithmeticOperator, CloseParenthesis, OpenParenthesis } from "./types.ts";
 
 export const splitByDash = (s: string): string[] => s.split(dash);
 export const splitBySemicolon = (s: string): string[] => s.split(semicolon);
@@ -27,8 +23,8 @@ export const firstCharToUpperCase = (s: string): string => s.charAt(0).toUpperCa
 export const sliceBeforeColon = (s: string): string => s.slice(0, s.indexOf(colon));
 export const sliceAfterColon = (s: string): string => s.slice(s.lastIndexOf(colon) + 1);
 export const makePxString = (s: string): string => `${s}${pxString}`;
-export const keepLetters = (value: string): string => value.replace(/[^a-z]/gi, "");
-export const removeLetters = (value: string): string => value.replace(/[a-z]/gi, "");
+export const keepLetters = (value: string): string => value.replace(/[^a-z%]/gi, "");
+export const removeLetters = (value: string): string => value.replace(/[a-z%]/gi, "");
 
 export const kebabCaseToCamelCase = (s: string): string => {
   return splitByDash(s)
@@ -44,7 +40,7 @@ export const normalizeCommaTokens = (s: string[]): string[] =>
     const isComma = firstChar === comma;
 
     if (isComma && isOneChar) {
-      acc.push(emptyString);
+      acc.push(INTERPOLATION_MARKER);
     } else if (isComma && !isOneChar) {
       acc.push(s.slice(1));
     } else {
@@ -63,7 +59,6 @@ export const isCalcString = (s: string): boolean => s.startsWith("calc");
 export const isOpenParenthesis = (s: string): s is OpenParenthesis => s === Parentheses.open;
 export const isCloseParenthesis = (s: string): s is CloseParenthesis => s === Parentheses.close;
 export const isMathOperator = (s: string): s is ArithmeticOperator => s in OperatorPrecedenceMap;
-const isNumberWithUnit = (s: string): boolean => /^(\d+(?:\.\d+)?)([a-z%]+)$/i.test(s);
 
 export const processCalcString = (
   calcTokens: string[],
@@ -76,7 +71,16 @@ export const processCalcString = (
       calcExpression.indexOf(Parentheses.open) + 1,
       calcExpression.lastIndexOf(Parentheses.close),
     )
-    .split(whitespace);
+    .split(whitespace)
+    .map((token) => {
+      if (token in ArithmeticOperatorTokens) {
+        return token;
+      }
+
+      return removeLetters(token) ? token : INTERPOLATION_MARKER;
+    });
+
+  console.log(innerExpression);
 
   const parsedTokens = innerExpression.map((token) =>
     parseToken(token.replace(comma, emptyString)),
@@ -105,14 +109,6 @@ export const processCalcString = (
 // ==== Eval Helpers ====
 
 export const getArrLastItem = <T>(arr: T[]): T => arr[arr.length - 1];
-
-export const getHigherPriorityOperator = (
-  incomingOperator: ArithmeticOperator,
-  stackOperator: ArithmeticOperator,
-): OperatorPrecedence =>
-  OperatorPrecedenceMap[incomingOperator] > OperatorPrecedenceMap[stackOperator]
-    ? OperatorPrecedenceMap[incomingOperator]
-    : OperatorPrecedenceMap[stackOperator];
 
 export const isHigherPriorityOperator = (
   toCompareOperator: ArithmeticOperator,

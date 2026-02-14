@@ -36,5 +36,8 @@ export const setQueryParam = (url: URL, key: string, value: string): URL => {
   return u;
 };
 
-export const getQueryParam = (url: URL, paramName: string, defaultValue = null): string | null =>
-  url.searchParams.get(paramName) ?? defaultValue;
+export const getQueryParam = (
+  url: URL,
+  paramName: string,
+  defaultValue: string | null = null,
+): string | null => url.searchParams.get(paramName) ?? defaultValue;

@@ -1,19 +1,23 @@
 import { match, P } from "ts-pattern";
 
 import {
-  isNumericString,
-  makePxString,
+  INTERPOLATION_MARKER,
   pxString,
+  space,
+  theme,
+  ThemeType,
+  whitespace,
   zeroString,
-} from "../../../1.basic-javascript/tagged-templates/practice/helpers.ts";
-import { whitespace } from "./constants.ts";
+} from "./constants.ts";
 import {
   isCalcString,
   isCssVariable,
   isFunction,
   isNumber,
+  isNumericString,
   isString,
   kebabCaseToCamelCase,
+  makePxString,
   normalizeCommaTokens,
   processCalcString,
   removeNewLines,
@@ -23,7 +27,6 @@ import {
   splitBySpace,
   trimString,
 } from "./helpers.ts";
-import { theme } from "./theme.ts";
 
 export const templateToArray = (strings: TemplateStringsArray): string[] => {
   return splitBySemicolon(strings.flatMap((s) => removeNewLines(s)).join())
@@ -38,6 +41,8 @@ const formatObjectKey = (s: string): string => {
 };
 const formatObjectValue = (s: string): string[] => {
   return normalizeCommaTokens(
+    // Replace sequences of two or more whitespace characters
+    // with a single space to normalize spacing before splitting
     splitBySpace(trimString(sliceAfterColon(s).replace(/\s{2,}/g, whitespace))),
   );
 };
@@ -69,7 +74,7 @@ export const cssTagged = (
       .returnType<string>()
       .with(zeroString, (v) => v)
       .with(pxString, () => makePxString(processArgument(interpolationQueue.shift())))
-      .with(P.string.length(0), () => processArgument(interpolationQueue.shift()))
+      .with(INTERPOLATION_MARKER, () => processArgument(interpolationQueue.shift()))
       .with(P.when(isNumericString), (v) => makePxString(v))
       .otherwise((v) => v);
   };
@@ -77,11 +82,7 @@ export const cssTagged = (
   const parseTokens = (tokens: string[]): string => {
     const isCalcTokens = isCalcString(tokens[0]);
     if (isCalcTokens) {
-      try {
-        return processCalcString(tokens, parseToken);
-      } catch (error) {
-        console.error(error);
-      }
+      return processCalcString(tokens, parseToken);
     }
 
     return tokens.map(parseToken).join(whitespace);
@@ -97,16 +98,7 @@ export const cssTagged = (
 };
 
 const resp = cssTagged`
-  height: calc(100px - ${theme.spacing}px);
-  width: calc(100% - ${theme.spacing}px);
-  widthClear: calc(100rem - 50rem);
-  widthWithoutPx: calc(100 - 50 + 10 / 2 * 3);
-  more: calc(${theme.spacing}px - ${theme.spacing}px);
-  more2: calc(${theme.spacing}px - ${theme.spacing}px + ${theme.spacing}px);
+  width: calc(100% - ${theme.spacing}%);
+  min-height: ${(theme: ThemeType) => theme.spacing * 10}px;
+  max-width: ${space * 10}px;
 `;
-
-// const resp = cssTagged`
-//   height: calc(100rem - ${theme.spacing}rem);
-// `;
-
-console.log(resp);

@@ -1,11 +1,11 @@
 export const pxString = "px";
-export const zeroString = "0";
 export const whitespace = " ";
 export const dash = "-";
 export const semicolon = ";";
 export const emptyString = "";
 export const colon = ":";
 export const comma = ",";
+export const zeroString = "0";
 
 export const splitByDash = (s: string): string[] => s.split(dash);
 export const splitBySemicolon = (s: string): string[] => s.split(semicolon);
