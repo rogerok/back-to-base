@@ -1,7 +1,7 @@
-import { Logger } from "./logger.ts";
+import { Logger, LoggerLevel } from "./logger.ts";
 
 export class ConsoleLogger extends Logger {
-  protected _writeMessage(message: string): void {
-    console.log(`[${this.level}]: ${message}`);
+  protected _writeMessage(message: string, level: LoggerLevel): void {
+    console.log(`[${level.toUpperCase()}]: ${message}`);
   }
 }

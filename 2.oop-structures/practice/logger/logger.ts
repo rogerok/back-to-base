@@ -1,4 +1,4 @@
-type LoggerLevel = "debug" | "error" | "info" | "warning";
+export type LoggerLevel = "debug" | "error" | "info" | "warning";
 
 export class Logger {
   levels: Record<LoggerLevel, number> = {
@@ -10,9 +10,13 @@ export class Logger {
 
   constructor(public level: LoggerLevel = "warning") {}
 
+  getLevelPriority(level: LoggerLevel): number {
+    return this.levels[level];
+  }
+
   log(message: string, level: LoggerLevel): void {
-    if (level >= this.level) {
-      this._writeMessage(message);
+    if (this.getLevelPriority(level) >= this.getLevelPriority(this.level)) {
+      this._writeMessage(message, level);
     }
   }
 
@@ -32,7 +36,7 @@ export class Logger {
     this.log(message, "error");
   }
 
-  protected _writeMessage(message: string): void {
+  protected _writeMessage(message: string, level: LoggerLevel): void {
     throw new Error("_writeMessage must be implemented in a subclass");
   }
 }
