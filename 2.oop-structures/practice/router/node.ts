@@ -51,6 +51,14 @@ class RadixTree {
   }
 
   insert(path: string, handler: Handler): void {
+    if (path !== "/" && path.endsWith("/")) {
+      path = path.slice(0, -1); // remove trailing slash
+    }
+
+    if (path.startsWith("/")) {
+      path = path.slice(1); // remove leading slash
+    }
+
     this._insert(this.root, path, handler);
   }
 
@@ -60,6 +68,10 @@ class RadixTree {
 
   private _insert(node: Node, path: string, handler: Handler): void {
     // If path is empty - it's end point
+
+    if (path.startsWith("/")) {
+      path = path.slice(1);
+    }
 
     if (!path.length) {
       node.handler = handler;
@@ -92,9 +104,7 @@ class RadixTree {
 
     // Create new node if there aren't matches
 
-    const newNode = new Node(path, NodeTypes.Static);
-    newNode.handler = handler;
-    node.children.push(newNode);
+    this._createNode(node, path, handler);
   }
 
   private _print(node: Node, prefix: string, isLast: boolean): void {
@@ -122,11 +132,58 @@ class RadixTree {
     node.handler = null;
     node.children = [newChild];
   }
+
+  private _createNode(parent: Node, path: string, handler: Handler): void {
+    // if node is parametric
+
+    if (path.startsWith(":")) {
+      // find end of param
+      const slashIndex = path.indexOf("/", 1);
+
+      // extract param without ":"
+      const paramName =
+        slashIndex === -1
+          ? path.slice(1) // ":id" → "id"
+          : path.slice(1, slashIndex); // ":id/posts" → "id"
+
+      const remaining = slashIndex === -1 ? "" : path.slice(slashIndex);
+
+      const paramNode = new Node(`:${paramName}`, NodeTypes.Parametric);
+      paramNode.paramName = paramName;
+      parent.children.push(paramNode);
+
+      if (remaining.length) {
+        this._insert(paramNode, remaining, handler);
+      } else {
+        paramNode.handler = handler;
+      }
+    } else {
+      const paramIndex = path.indexOf(":");
+
+      if (paramIndex !== -1) {
+        const staticPart = path.slice(0, paramIndex); // "/users"
+        const remaining = path.slice(paramIndex); // ":id/posts"
+
+        const staticNode = new Node(staticPart, NodeTypes.Static);
+        parent.children.push(staticNode);
+
+        this._insert(staticNode, remaining, handler);
+      } else {
+        const staticNode = new Node(path, NodeTypes.Static);
+        staticNode.handler = handler;
+        parent.children.push(staticNode);
+      }
+    }
+  }
 }
 
 const tree = new RadixTree();
 
-tree.insert("/users", () => "handler1");
-tree.insert("/users/profile", () => "handler2");
-tree.insert("/user/posts", () => "handler3");
+tree.insert("/users", () => "listUsers");
+tree.insert("/users/:id", () => "getUser");
+tree.insert("/users/:id/posts", () => "getUserPosts");
+tree.insert("/users/:id/posts/:postId", () => "getUserPost");
+tree.insert("/posts", () => "listPosts");
+tree.insert("/posts/:postId", () => "getPost");
+
 tree.print();
