@@ -33,9 +33,18 @@ class RadixTree {
   }
 
   search(path: string): { handler: Handler; params: Record<string, string> } | null {
-    // TODO: позже реализуем
-    console.log("Search:", path);
-    return null;
+    if (path !== "/" && path.endsWith("/")) {
+      path = path.slice(0, -1);
+    }
+
+    if (path.startsWith("/")) {
+      path = path.slice(1);
+    }
+
+    const params: Record<string, string> = {};
+    const handler = this._search(this.root, path, params);
+
+    return handler ? { handler, params } : null;
   }
 
   findCommonPrefix(str1: string, str2: string): string {
@@ -66,6 +75,54 @@ class RadixTree {
     this._print(this.root, "", true);
   }
 
+  private _search(node: Node, path: string, params: Record<string, string>): Handler | null {
+    if (path.startsWith("/")) {
+      path = path.slice(1);
+    }
+
+    if (path.length === 0) {
+      return node.handler;
+    }
+
+    for (const child of node.children) {
+      if (child.type === NodeTypes.Static && path.startsWith(child.path)) {
+        const result = this._search(child, path.slice(child.path.length), params);
+
+        if (result) {
+          return result;
+        }
+      }
+
+      if (child.type === NodeTypes.Parametric) {
+        const slashIndex = path.indexOf("/");
+        const paramValue = slashIndex === -1 ? path : path.slice(0, slashIndex);
+
+        if (child.paramName) {
+          params[child.paramName] = paramValue;
+
+          const remaining = slashIndex === -1 ? "" : path.slice(slashIndex);
+          const result = this._search(child, remaining, params);
+
+          if (result) {
+            return result;
+          }
+
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete params[child.paramName];
+        }
+      }
+
+      if (child.type === NodeTypes.Wildcard) {
+        if (child.paramName) {
+          params[child.paramName] = path;
+          return child.handler;
+        }
+      }
+    }
+
+    return null;
+  }
+
   private _insert(node: Node, path: string, handler: Handler): void {
     // If path is empty - it's end point
 
@@ -90,7 +147,7 @@ class RadixTree {
         }
 
         if (commonPrefix.length < child.path.length) {
-          // 2b. commonPrefix < child.path (нужен split)
+          // commonPrefix < child.path (need split)
 
           this.splitNode(child, commonPrefix.length);
 
@@ -157,12 +214,34 @@ class RadixTree {
       } else {
         paramNode.handler = handler;
       }
+    } else if (path.startsWith("*")) {
+      const wildcardName = path.slice(1);
+
+      const wildcardNode = new Node(wildcardName, NodeTypes.Wildcard);
+      wildcardNode.paramName = wildcardName;
+      wildcardNode.handler = handler;
+      parent.children.push(wildcardNode);
+      return;
     } else {
       const paramIndex = path.indexOf(":");
+      const wildcardIndex = path.indexOf("*");
+      let specialIndex = -1;
 
-      if (paramIndex !== -1) {
-        const staticPart = path.slice(0, paramIndex); // "/users"
-        const remaining = path.slice(paramIndex); // ":id/posts"
+      if (paramIndex !== -1 && wildcardIndex !== -1) {
+        specialIndex = Math.min(paramIndex, wildcardIndex);
+      } else if (paramIndex !== -1) {
+        specialIndex = paramIndex;
+      } else if (wildcardIndex !== -1) {
+        specialIndex = wildcardIndex;
+      }
+
+      if (specialIndex !== -1) {
+        let staticPart = path.slice(0, specialIndex); // "/users"
+        const remaining = path.slice(specialIndex); // ":id/posts"
+
+        if (staticPart.endsWith("/")) {
+          staticPart = staticPart.slice(0, -1);
+        }
 
         const staticNode = new Node(staticPart, NodeTypes.Static);
         parent.children.push(staticNode);
@@ -182,8 +261,15 @@ const tree = new RadixTree();
 tree.insert("/users", () => "listUsers");
 tree.insert("/users/:id", () => "getUser");
 tree.insert("/users/:id/posts", () => "getUserPosts");
-tree.insert("/users/:id/posts/:postId", () => "getUserPost");
 tree.insert("/posts", () => "listPosts");
 tree.insert("/posts/:postId", () => "getPost");
+tree.insert("/static/*filepath", () => "serveStatic");
 
+console.log(tree.search("/users"));
+console.log(tree.search("/users/123"));
+console.log(tree.search("/users/123/posts"));
+console.log(tree.search("/posts/456"));
+console.log(tree.search("/invalid"));
+console.log(tree.search("/static/css/app.css"));
+console.log(tree.search("/static/js/a/b/bundle.js"));
 tree.print();
