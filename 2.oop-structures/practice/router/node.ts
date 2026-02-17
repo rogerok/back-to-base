@@ -1,4 +1,5 @@
-import { Handler, ObjectValues } from "./types";
+import { HandlerStorage } from "./handler-storage.ts";
+import { Handler, Methods, Middleware, ObjectValues, ParamsType } from "./types";
 
 const NodeTypes = {
   Parametric: "parametric",
@@ -10,29 +11,29 @@ export type NodeType = ObjectValues<typeof NodeTypes>;
 
 class Node {
   children: Node[] = [];
-  handler: Handler | null = null;
   paramName: string | null = null;
   path: string;
   type: NodeType;
+  handlerStorage: HandlerStorage = new HandlerStorage();
 
   constructor(path: string = "", type: NodeType = NodeTypes.Static) {
     this.path = path;
     this.type = type;
   }
 
-  isEndpoint() {
-    return !!this.handler;
+  isEndpoint(): boolean {
+    return this.handlerStorage.hasHandlers();
   }
 }
 
-class RadixTree {
+export class RouteTree {
   root: Node;
 
   constructor() {
     this.root = new Node();
   }
 
-  search(path: string): { handler: Handler; params: Record<string, string> } | null {
+  search(method: Methods, path: string): { handler: Middleware; params: ParamsType } | null {
     if (path !== "/" && path.endsWith("/")) {
       path = path.slice(0, -1);
     }
@@ -41,8 +42,8 @@ class RadixTree {
       path = path.slice(1);
     }
 
-    const params: Record<string, string> = {};
-    const handler = this._search(this.root, path, params);
+    const params: ParamsType = {};
+    const handler = this._searchNode(this.root, path, params)?.handlerStorage.getHandler(method);
 
     return handler ? { handler, params } : null;
   }
@@ -59,7 +60,7 @@ class RadixTree {
     return str1.slice(0, i);
   }
 
-  insert(path: string, handler: Handler): void {
+  insert(method: Methods, path: string, handler: Handler): void {
     if (path !== "/" && path.endsWith("/")) {
       path = path.slice(0, -1); // remove trailing slash
     }
@@ -68,25 +69,25 @@ class RadixTree {
       path = path.slice(1); // remove leading slash
     }
 
-    this._insert(this.root, path, handler);
+    this._insert(this.root, path, method, handler);
   }
 
   print(): void {
     this._print(this.root, "", true);
   }
 
-  private _search(node: Node, path: string, params: Record<string, string>): Handler | null {
+  private _searchNode(node: Node, path: string, params: ParamsType): Node | null {
     if (path.startsWith("/")) {
       path = path.slice(1);
     }
 
     if (path.length === 0) {
-      return node.handler;
+      return node.handlerStorage.hasHandlers() ? node : null;
     }
 
     for (const child of node.children) {
       if (child.type === NodeTypes.Static && path.startsWith(child.path)) {
-        const result = this._search(child, path.slice(child.path.length), params);
+        const result = this._searchNode(child, path.slice(child.path.length), params);
 
         if (result) {
           return result;
@@ -101,7 +102,7 @@ class RadixTree {
           params[child.paramName] = paramValue;
 
           const remaining = slashIndex === -1 ? "" : path.slice(slashIndex);
-          const result = this._search(child, remaining, params);
+          const result = this._searchNode(child, remaining, params);
 
           if (result) {
             return result;
@@ -115,7 +116,7 @@ class RadixTree {
       if (child.type === NodeTypes.Wildcard) {
         if (child.paramName) {
           params[child.paramName] = path;
-          return child.handler;
+          return child;
         }
       }
     }
@@ -123,7 +124,7 @@ class RadixTree {
     return null;
   }
 
-  private _insert(node: Node, path: string, handler: Handler): void {
+  private _insert(node: Node, path: string, method: Methods, handler: Handler): void {
     // If path is empty - it's end point
 
     if (path.startsWith("/")) {
@@ -131,7 +132,7 @@ class RadixTree {
     }
 
     if (!path.length) {
-      node.handler = handler;
+      node.handlerStorage.addHandler(method, handler);
       return;
     }
 
@@ -142,7 +143,7 @@ class RadixTree {
       if (commonPrefix.length) {
         //  commonPrefix === child.path -> recursion
         if (commonPrefix.length === child.path.length) {
-          this._insert(child, path.slice(child.path.length), handler);
+          this._insert(child, path.slice(child.path.length), method, handler);
           return;
         }
 
@@ -153,7 +154,7 @@ class RadixTree {
 
           const remaining = path.slice(commonPrefix.length);
 
-          this._insert(child, remaining, handler);
+          this._insert(child, remaining, method, handler);
           return;
         }
       }
@@ -161,15 +162,18 @@ class RadixTree {
 
     // Create new node if there aren't matches
 
-    this._createNode(node, path, handler);
+    this._createNode(node, path, method, handler);
   }
 
   private _print(node: Node, prefix: string, isLast: boolean): void {
     const connector = isLast ? "└─ " : "├─ ";
     const pathDisplay = node.path || "(root)";
-    const handlerMark = node.handler ? " [HANDLER]" : "";
 
-    console.log(prefix + connector + pathDisplay + handlerMark);
+    // Показываем методы из handlerStorage
+    const methods = node.handlerStorage.getAllowedMethods();
+    const methodsMark = methods.length > 0 ? ` [${methods.join(", ")}]` : "";
+
+    console.log(prefix + connector + pathDisplay + methodsMark);
 
     const childPrefix = prefix + (isLast ? "    " : "│   ");
     node.children.forEach((child, idx) => {
@@ -181,16 +185,15 @@ class RadixTree {
     const childPath = node.path.slice(splitAt);
     const newChild = new Node(childPath, NodeTypes.Static);
 
-    newChild.handler = node.handler;
+    newChild.handlerStorage = node.handlerStorage;
     newChild.children = node.children;
 
     node.path = node.path.slice(0, splitAt);
-
-    node.handler = null;
+    node.handlerStorage = new HandlerStorage();
     node.children = [newChild];
   }
 
-  private _createNode(parent: Node, path: string, handler: Handler): void {
+  private _createNode(parent: Node, path: string, method: Methods, handler: Handler): void {
     // if node is parametric
 
     if (path.startsWith(":")) {
@@ -210,16 +213,16 @@ class RadixTree {
       parent.children.push(paramNode);
 
       if (remaining.length) {
-        this._insert(paramNode, remaining, handler);
+        this._insert(paramNode, remaining, method, handler);
       } else {
-        paramNode.handler = handler;
+        paramNode.handlerStorage.addHandler(method, handler);
       }
     } else if (path.startsWith("*")) {
       const wildcardName = path.slice(1);
 
       const wildcardNode = new Node(wildcardName, NodeTypes.Wildcard);
       wildcardNode.paramName = wildcardName;
-      wildcardNode.handler = handler;
+      wildcardNode.handlerStorage.addHandler(method, handler);
       parent.children.push(wildcardNode);
       return;
     } else {
@@ -246,30 +249,12 @@ class RadixTree {
         const staticNode = new Node(staticPart, NodeTypes.Static);
         parent.children.push(staticNode);
 
-        this._insert(staticNode, remaining, handler);
+        this._insert(staticNode, remaining, method, handler);
       } else {
         const staticNode = new Node(path, NodeTypes.Static);
-        staticNode.handler = handler;
+        staticNode.handlerStorage.addHandler(method, handler);
         parent.children.push(staticNode);
       }
     }
   }
 }
-
-const tree = new RadixTree();
-
-tree.insert("/users", () => "listUsers");
-tree.insert("/users/:id", () => "getUser");
-tree.insert("/users/:id/posts", () => "getUserPosts");
-tree.insert("/posts", () => "listPosts");
-tree.insert("/posts/:postId", () => "getPost");
-tree.insert("/static/*filepath", () => "serveStatic");
-
-console.log(tree.search("/users"));
-console.log(tree.search("/users/123"));
-console.log(tree.search("/users/123/posts"));
-console.log(tree.search("/posts/456"));
-console.log(tree.search("/invalid"));
-console.log(tree.search("/static/css/app.css"));
-console.log(tree.search("/static/js/a/b/bundle.js"));
-tree.print();

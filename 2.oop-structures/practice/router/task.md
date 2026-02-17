@@ -9,12 +9,12 @@ interface Context {
  res: Response,
 }
 
-// in db-middleware.ts begin
+// in db-middleware.d.ts begin
 declare ... // через слияние интерфейс Context должен быть расширен
 interface Context {
   dataSource: DbInstace
 }
-// in db-middleware.ts end
+// in db-middleware.d.ts end
 
 type Handler = (ctx: Context, next: Next) => void | ((ctx: Context) => Promise<void>);
 export type Next = () => void | Promise<void>;
