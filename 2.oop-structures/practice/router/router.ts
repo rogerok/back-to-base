@@ -1,4 +1,4 @@
-import { RouteTree } from "./node.ts";
+import { RouteTree } from "./tree.ts";
 import { Handler, Methods, Middleware, TPath } from "./types";
 
 interface IRouter {
@@ -67,6 +67,10 @@ export class Router implements IRouter {
 
   patch = (path: string, handler: Handler): this => {
     return this.addRoute("PATCH", path, handler);
+  };
+
+  delete = (path: string, handler: Handler): this => {
+    return this.addRoute("DELETE", path, handler);
   };
 
   nest = (path: string, callback: (router: Router) => void): this => {
