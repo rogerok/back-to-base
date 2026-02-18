@@ -1,14 +1,13 @@
 // 1
-
-interface Man {
+export interface Man {
   name: string;
 }
 
-let man: Man;
+export const structuralTyping = (): Man => {
+  const manWithAge = {
+    age: 18,
+    name: "Alex",
+  };
 
-const manWithAge = {
-  age: 18,
-  name: "Alex",
+  return manWithAge;
 };
-
-man = manWithAge;
