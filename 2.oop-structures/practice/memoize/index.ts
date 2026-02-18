@@ -1,25 +1,34 @@
 import { LRUCache } from "./lru-cache.ts";
 
-type Callback<Args, Return> = (...args: Args[]) => Return;
+type Callback<Args extends unknown[], Return> = (...args: Args) => Return;
 
-const DEFAULT_SIZE = 10;
+const DEFAULT_SIZE = 2;
 
-export function memoize<Args, Return>(cb: Callback<Args, Return>): Callback<Args, Return> {
+export function memoize<Args extends unknown[], Return>(
+  cb: (...args: Args) => Return,
+  cacheSize: number = DEFAULT_SIZE,
+): { clear(): void } & Callback<Args, Return> {
   const cache: LRUCache<string, Return> = new LRUCache({
-    maxSize: DEFAULT_SIZE,
+    maxSize: cacheSize,
   });
 
-  const wrapper: Callback<Args, Return> = (...args: Args[]): Return => {
+  function wrapper(...args: Args): Return {
     const argKeys = String(args);
     const value = cache.get(argKeys);
-    if (value) {
+    if (value !== undefined) {
       return value;
     } else {
       const callResult = cb(...args);
       cache.set(argKeys, callResult);
       return callResult;
     }
+  }
+
+  wrapper.clear = function clear() {
+    cache.clearCache();
   };
+
+  wrapper.clear();
 
   return wrapper;
 }

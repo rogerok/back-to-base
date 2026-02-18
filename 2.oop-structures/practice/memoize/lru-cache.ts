@@ -1,4 +1,4 @@
-export interface LruCacheOptions<K, V> {
+export interface LruCacheOptions {
   maxSize: number;
 }
 
@@ -10,7 +10,7 @@ export class LRUCache<K, V> {
   private cache = new Map<K, CacheValue<V>>();
   private readonly maxSize: number;
 
-  constructor(options: LruCacheOptions<K, V>) {
+  constructor(options: LruCacheOptions) {
     if (options.maxSize <= 0) {
       throw new Error("maxSize must be greater than 0");
     }
