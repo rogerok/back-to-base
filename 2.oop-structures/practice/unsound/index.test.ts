@@ -8,8 +8,6 @@ describe("unsound", () => {
 
     mixedArr.push(1);
 
-    console.log(arrWithString);
-
     expect(() => arrWithString[3].toUpperCase()).toThrowError();
   });
 
@@ -84,10 +82,65 @@ describe("unsound", () => {
     expect(() => fnTrowError(true).toUpperCase()).toThrow();
   });
 
-  //
-  // it("clears cache when clear() is called", () => {});
-  //
-  // it("evicts least recently used when cache is full", () => {});
-  //
-  // it("respects LRU order (recently used should survive)", () => {});
+  it("spread unsound", () => {
+    const o1: { p: string; q: number } = { p: "", q: 0 };
+    const o2: { p: string } = o1;
+    const o3: { p: string; q: string } = { q: "", ...o2 };
+
+    expect(() => o3.q.toUpperCase()).toThrow();
+  });
+
+  it("record unsound", () => {
+    const a: Record<string, string> = {};
+    const b: Record<"k", string> = a;
+
+    const bk: string = b.k;
+
+    expect(() => bk.toUpperCase()).toThrow();
+  });
+
+  it("spread with computed key", () => {
+    const a = { b: "hello" };
+    const key: string = "hello";
+    const b: Record<string, string> = { ...a, [key]: undefined };
+
+    expect(() => b[key].toUpperCase()).toThrow();
+  });
+
+  it("union type with in operator", () => {
+    type Union = { first: string; second: string } | { fourth: number; third: number };
+
+    const union: Union = { first: "a", fourth: 4, third: 3 };
+
+    if ("first" in union) {
+      expect(() => union.second.toUpperCase()).toThrow();
+    }
+  });
+
+  it("spread operators and accessors", () => {
+    function useObj(obj: { bar: number; foo: string }): string {
+      return obj.foo;
+    }
+
+    interface Inter {
+      foo: string;
+      spam: number;
+    }
+
+    class C implements Inter {
+      get foo() {
+        return "foo string";
+      }
+
+      get spam() {
+        return 42;
+      }
+    }
+
+    function doWork(c: Inter) {
+      return useObj({ ...c, bar: c.spam });
+    }
+
+    expect(() => doWork(new C()).toUpperCase()).toThrow();
+  });
 });
