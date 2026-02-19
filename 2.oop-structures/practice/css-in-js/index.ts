@@ -52,31 +52,30 @@ const processArgument = (arg: unknown): string => {
     .otherwise(String);
 };
 
-export const cssTagged = (
-  strings: TemplateStringsArray,
-  ...args: unknown[]
-): Record<string, string> => {
-  const declarations = templateToArray(strings);
+const createInterpolationResolver = (args: unknown[]): (() => string) => {
+  const queue = [...args];
 
-  const parsedDeclarations = parseDeclarations(declarations);
-  const interpolationQueue = [...args];
+  return () => processArgument(queue.shift());
+};
 
-  const parseToken = (token: string): string => {
-    return match(token)
+const createTokenParser = (resolveInterpolation: () => string) => {
+  return (token: string): string =>
+    match(token)
       .returnType<string>()
       .with(zeroString, (v) => v)
       .with(
         P.when((v) => v.includes(INTERPOLATION_MARKER)),
         (v) => {
-          return v.replace(INTERPOLATION_MARKER, processArgument(interpolationQueue.shift()));
+          return v.replace(INTERPOLATION_MARKER, resolveInterpolation());
         },
       )
-      .with(pxString, () => makePxString(processArgument(interpolationQueue.shift())))
+      .with(pxString, () => makePxString(resolveInterpolation()))
       .with(P.when(isNumericString), (v) => makePxString(v))
       .otherwise((v) => v);
-  };
+};
 
-  const parseTokens = (tokens: string[]): string => {
+const createTokensParsers = (parseToken: (t: string) => string) => {
+  return (tokens: string[]): string => {
     const isCalcTokens = isCalcString(tokens.join(""));
     if (isCalcTokens) {
       return processCalcString(tokens, parseToken);
@@ -84,6 +83,18 @@ export const cssTagged = (
 
     return tokens.map(parseToken).join(whitespace);
   };
+};
+
+export const cssTagged = (
+  strings: TemplateStringsArray,
+  ...args: unknown[]
+): Record<string, string> => {
+  const declarations = templateToArray(strings);
+  const parsedDeclarations = parseDeclarations(declarations);
+
+  const resolveInterpolation = createInterpolationResolver(args);
+  const parseToken = createTokenParser(resolveInterpolation);
+  const parseTokens = createTokensParsers(parseToken);
 
   return parsedDeclarations.reduce<Record<string, string>>((acc, item) => {
     for (const [key, value] of Object.entries(item)) {
