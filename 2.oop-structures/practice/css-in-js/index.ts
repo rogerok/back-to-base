@@ -65,20 +65,21 @@ export const cssTagged = (
     return match(token)
       .returnType<string>()
       .with(zeroString, (v) => v)
-      .with(INTERPOLATION_MARKER, () => processArgument(interpolationQueue.shift()))
+      .with(
+        P.when((v) => v.includes(INTERPOLATION_MARKER)),
+        (v) => {
+          return v.replace(INTERPOLATION_MARKER, processArgument(interpolationQueue.shift()));
+        },
+      )
       .with(pxString, () => makePxString(processArgument(interpolationQueue.shift())))
       .with(P.when(isNumericString), (v) => makePxString(v))
       .otherwise((v) => v);
   };
 
   const parseTokens = (tokens: string[]): string => {
-    const isCalcTokens = isCalcString(tokens[0]);
+    const isCalcTokens = isCalcString(tokens.join(""));
     if (isCalcTokens) {
-      try {
-        return processCalcString(tokens, parseToken);
-      } catch (error) {
-        console.error(error);
-      }
+      return processCalcString(tokens, parseToken);
     }
 
     return tokens.map(parseToken).join(whitespace);
@@ -92,18 +93,3 @@ export const cssTagged = (
     return acc;
   }, {});
 };
-
-// const resp = cssTagged`
-//   width: calc(100% - ${theme.spacing}%);
-//   min-height: ${(theme: ThemeType) => theme.spacing * 10}px;
-//   max-width: ${space * 10}px;
-// `;
-
-// const resp = cssTagged`
-//   max-width: ${space}rem;
-// `;
-const resp = cssTagged`
- height: calc(100px - ${theme.spacing}px);
-`;
-
-console.log(resp);

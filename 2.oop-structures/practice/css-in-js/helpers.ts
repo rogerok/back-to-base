@@ -32,36 +32,45 @@ export const kebabCaseToCamelCase = (s: string): string => {
     .join(emptyString);
 };
 
-export const normalizeCommaTokens = (s: string[]): string[] => {
-  if (isCalcString(s[0])) {
-    const arr = s.reduce<string[]>((acc, s) => {
-      if (s.startsWith(",")) {
-        acc.push(INTERPOLATION_MARKER, s.slice(1));
-        return acc;
+export const normalizeCommaTokens = (tokens: string[]): string[] => {
+  const normalizeTokens = (inputTokens: string[]): string[] => {
+    return inputTokens.reduce<string[]>((result, token) => {
+      const firstChar = token.charAt(0);
+      const isSingleChar = token.length === 1;
+      const isLeadingComma = firstChar === comma;
+
+      if (isLeadingComma && isSingleChar) {
+        result.push(INTERPOLATION_MARKER);
+      } else if (isLeadingComma && !isSingleChar) {
+        result.push(INTERPOLATION_MARKER + token.slice(1));
+      } else {
+        result.push(token);
       }
 
-      acc.push(s);
-      return acc;
+      return result;
     }, []);
-    console.log("after isCalcString", arr);
-    return arr;
+  };
+
+  if (isCalcString(tokens.join())) {
+    const marker = "marker";
+    const joinedWithMarker = tokens.join(marker);
+
+    const innerCalcContent = joinedWithMarker.slice(
+      joinedWithMarker.indexOf(Parentheses.open) + 1,
+      joinedWithMarker.lastIndexOf(Parentheses.close),
+    );
+
+    const calcTokens = innerCalcContent.split(marker);
+
+    const normalized = normalizeTokens(calcTokens);
+
+    normalized[0] = `calc(${normalized[0]}`;
+    normalized[normalized.length - 1] += ")";
+
+    return normalized;
   }
 
-  return s.reduce<string[]>((acc, s) => {
-    const firstChar = s.charAt(0);
-    const isOneChar = s.length === 1;
-
-    const isComma = firstChar === comma;
-
-    if (isComma && isOneChar) {
-      acc.push(INTERPOLATION_MARKER);
-    } else if (isComma && !isOneChar) {
-      acc.push(INTERPOLATION_MARKER, s.slice(1));
-    } else {
-      acc.push(s);
-    }
-    return acc;
-  }, []);
+  return normalizeTokens(tokens);
 };
 
 export const isString = (v: unknown): v is string => typeof v === "string";
@@ -70,7 +79,7 @@ export const isFunction = (v: unknown): v is (...args: unknown[]) => unknown =>
   typeof v === "function";
 export const isNumericString = (s: string): boolean => !Number.isNaN(Number(s));
 export const isCssVariable = (s: string): boolean => s.startsWith(`${dash}${dash}`);
-export const isCalcString = (s: string): boolean => s.startsWith("calc");
+export const isCalcString = (s: string): boolean => s.includes("calc");
 export const isOpenParenthesis = (s: string): s is OpenParenthesis => s === Parentheses.open;
 export const isCloseParenthesis = (s: string): s is CloseParenthesis => s === Parentheses.close;
 export const isMathOperator = (s: string): s is ArithmeticOperator => s in OperatorPrecedenceMap;
@@ -80,7 +89,6 @@ export const processCalcString = (
   parseToken: (token: string) => string,
 ): string => {
   const calcExpression = calcTokens.join(whitespace);
-  console.log("calcExpression", calcExpression);
 
   const innerExpression = calcExpression
     .slice(
@@ -89,11 +97,7 @@ export const processCalcString = (
     )
     .split(" ");
 
-  console.log("innerExpression", innerExpression);
-
   const parsedTokens = innerExpression.map(parseToken);
-
-  console.log("parsedTokens", parsedTokens);
 
   const extractedUnits = parsedTokens
     .map(keepLetters)
@@ -101,8 +105,6 @@ export const processCalcString = (
     .filter((u) => u !== INTERPOLATION_MARKER);
 
   const numericExpression = parsedTokens.map(removeLetters).join(emptyString);
-
-  console.log(extractedUnits);
 
   if (extractedUnits.length) {
     const referenceUnit = extractedUnits.pop();
