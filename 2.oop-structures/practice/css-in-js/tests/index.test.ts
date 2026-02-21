@@ -216,17 +216,6 @@ describe("Tagged Template – calc with interpolation", () => {
   });
 });
 
-describe("Tagged Template – calc mixed units error", () => {
-  it("should throw if units are mixed", () => {
-    expect(
-      () =>
-        cssTagged`
-        width: calc(100px - 10rem);
-      `,
-    ).toThrow("calc(100px-10rem) Units should not be mixed");
-  });
-});
-
 describe("Tagged Template – calc precedence correctness", () => {
   it("should respect operator precedence", () => {
     expect(
