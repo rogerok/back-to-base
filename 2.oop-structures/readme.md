@@ -4,31 +4,68 @@
 
 ```ts
 interface Context {
- req: Request,
- res: Response,
+    req: Request,
+    res: Response,
 }
 
 // in db-middleware.d.ts begin
 declare ... // через слияние интерфейс Context должен быть расширен
 interface Context {
-  dataSource: DbInstace
+    dataSource: DbInstace
 }
+
 // in db-middleware.d.ts end
 
-type Handler = (ctx: Context, next: Next) => void | ((ctx: Context) => Promise<void>);
+type Handler = (ctx: Context2, next: Next) => void | ((ctx: Context2) => Promise<void>);
 export type Next = () => void | Promise<void>;
 
-use(middleware: Middleware, opts?: UseOptions): Router
+use(middleware
+:
+Middleware, opts ? : UseOptions
+):
+Router
 
-get(path: string, opts: RouteOptions, handler: Handler): Router
-post(path: string, opts: RouteOptions, handler: Handler): Router
-patch(path: string, opts: RouteOptions, handler: Handler): Router
-delete(path: string, opts: RouteOptions, handler: Handler): Router
+get(path
+:
+string, opts
+:
+RouteOptions, handler
+:
+Handler
+):
+Router
+post(path
+:
+string, opts
+:
+RouteOptions, handler
+:
+Handler
+):
+Router
+patch(path
+:
+string, opts
+:
+RouteOptions, handler
+:
+Handler
+):
+Router
+delete (path
+:
+string, opts
+:
+RouteOptions, handler
+:
+Handler
+):
+Router
 
 const router = new Router()
-  .get("/", getHelloHandler)
-  .use(loggerMiddleware) // срабатывает для всех вложенных тоже
-  .nest("/api", (r) => r.get("/test").use(dbMiddleware)) // dbMiddleware срабатывает только для вложенных
+    .get("/", getHelloHandler)
+    .use(loggerMiddleware) // срабатывает для всех вложенных тоже
+    .nest("/api", (r) => r.get("/test").use(dbMiddleware)) // dbMiddleware срабатывает только для вложенных
 
 router.prettyPrint()
 // └── / — пример, не прям так
