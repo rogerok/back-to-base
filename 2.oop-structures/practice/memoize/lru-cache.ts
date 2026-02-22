@@ -6,6 +6,7 @@ interface CacheValue<V> {
   value: V;
 }
 
+// TODO in cache replace with list
 export class LRUCache<K, V> {
   private cache = new Map<K, CacheValue<V>>();
   private readonly maxSize: number;

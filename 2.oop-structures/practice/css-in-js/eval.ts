@@ -20,6 +20,8 @@ import {
 } from "./helpers.ts";
 import { ExpressionToken } from "./types.ts";
 
+// TODO: to AST
+
 export const parseToRpn = (expression: string): string => {
   const normalizedExpression = removeWhitespace(expression);
   let rpn = "";

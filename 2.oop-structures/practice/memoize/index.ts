@@ -8,7 +8,7 @@ export function memoize<Args extends unknown[], Return>(
   cb: (...args: Args) => Return,
   cacheSize: number = DEFAULT_SIZE,
 ): { clear(): void } & Callback<Args, Return> {
-  const cache: LRUCache<string, Return> = new LRUCache({
+  const cache = new LRUCache<string, Return>({
     maxSize: cacheSize,
   });
 
