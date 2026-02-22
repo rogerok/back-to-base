@@ -76,7 +76,7 @@ export class Router {
 
         try {
           return Promise.resolve(fn(ctx, () => dispatch(i + 1)));
-        } catch (err) {
+        } catch {
           return Promise.reject(new Error(`Can't call ${fn.name}`));
         }
       };
