@@ -1,7 +1,7 @@
 import { StatusBodyMap, StatusCode } from "./index.ts";
 
 declare global {
-  interface TypedResponse<T = unknown> extends Response {
+  interface TypedResponse2<T = unknown> {
     status<S extends StatusCode>(
       code: S,
     ): {
@@ -10,7 +10,7 @@ declare global {
     };
   }
 
-  export interface AppRequest {
+  interface AppRequest {
     headers: Record<string, string>;
     method: string;
     params: Record<string, string>;
@@ -19,17 +19,12 @@ declare global {
     body?: unknown;
   }
 
-  export interface AppResponse {
+  interface AppResponse {
     status(code: number): { send(data: unknown): void };
   }
 
-  export interface Context2 {
+  interface Context2 {
     req: AppRequest;
     res: AppResponse;
   }
-
-  // interface Context2 {
-  //   req: Request;
-  //   res: TypedResponse;
-  // }
 }

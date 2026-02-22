@@ -3,11 +3,9 @@ import { StatusBodyMap, StatusCode } from "./status.ts";
 
 declare global {
   interface TypedResponse<T = unknown> {
-    status<S extends StatusCode>(
-      code: S,
-    ): {
-      json(body: StatusBodyMap<T>[S]): void;
-      send(body: StatusBodyMap<T>[S]): void;
+    status(code: StatusCode<T>): {
+      json(body: StatusBodyMap<T>[StatusCode<T>]): void;
+      send(body: StatusBodyMap<T>[StatusCode<T>]): void;
     };
   }
 

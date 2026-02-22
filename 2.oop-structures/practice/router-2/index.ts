@@ -1,4 +1,4 @@
-import { Handler, Methods, Middleware, Next, TPath } from "./types";
+import { Handler, Methods, Middleware, Next } from "./types"; // interface IRouter {
 
 // interface IRouter {
 //   basePath: TPath;
@@ -20,7 +20,7 @@ interface RouteDescriptor {
 interface RouteOptions {
   handlers: Handler[];
   method: Methods;
-  url: TPath;
+  url: string;
 }
 
 /*
@@ -30,7 +30,7 @@ find-may-way изучить
  */
 
 export class Router {
-  basePath: TPath;
+  basePath: string;
   middleware: Middleware[] = [];
 
   // TODO: this should be a radix tree
@@ -47,6 +47,14 @@ export class Router {
 
   match = (method: Methods, url: string): RouteOptions | undefined => {
     return this.routes.find((r) => url === r.url && method === r.method);
+  };
+
+  concatRoutes = (router: Router, url: string, middleware: Middleware[]) => {
+    router.routes = router.routes.map((r) => ({
+      ...r,
+      handlers: middleware.concat(r.handlers),
+      url: url.concat(r.url),
+    }));
   };
 
   compose = (middlewares: Middleware[]) => {
@@ -69,7 +77,7 @@ export class Router {
         try {
           return Promise.resolve(fn(ctx, () => dispatch(i + 1)));
         } catch (err) {
-          return Promise.reject(err);
+          return Promise.reject(new Error(`Can't call ${fn.name}`));
         }
       };
 
@@ -125,8 +133,14 @@ export class Router {
     });
   };
 
-  nest = (url: string, cb: (r: Router) => void) => {
+  nest = (url: string, cb: (r: Router) => void): this => {
     const router = new Router(url);
+    cb(router);
+
+    router.concatRoutes(router, router.basePath, this.middleware);
+
+    this.routes.push(...router.routes);
+    return this;
   };
 }
 
