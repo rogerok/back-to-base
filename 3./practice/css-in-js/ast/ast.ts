@@ -57,6 +57,7 @@ export const generateAST = (input: string) => {
 
       while (
         o2 !== undefined &&
+        o2 !== "(" &&
         isOperator(o2) &&
         (isHigherPriorityOperator(o2, o1) || isEqualPriorityOperator(o2, o1))
       ) {
@@ -77,7 +78,7 @@ export const generateAST = (input: string) => {
     if (isCloseParenthesis(token)) {
       let topOfStack = peek();
 
-      while (!isCloseParenthesis(topOfStack ?? "")) {
+      while (topOfStack !== "(") {
         assertToken(stack.length !== 0);
 
         const parsed = handlePop();
@@ -129,30 +130,21 @@ class Visitor {
 
   visitBinaryExpression = (expression: BinaryExpression): number => {
     const handler = getArithmeticHandler(expression.operator);
-    const left = expression.left;
-    const right = expression.right;
 
-    if (left?.type === "Number" && right?.type === "Number") {
-      return handler.execute(left.value, right.value);
-    }
+    const left = this.visit(expression.left!);
+    const right = this.visit(expression.right!);
 
-    if (left) {
-      return this.visit(left);
-    }
-
-    if (right) {
-      return this.visit(right);
-    }
+    return handler.execute(left, right);
 
     throw new Error(`Invalid operation: ${expression.operator}`);
   };
 }
 
-const input = "8 - (4 + 6 ) / 2 - 1";
+const input = "(2 + 3) * 4";
 
 export const evaluator = (input: string): number => {
   const ast = generateAST(input);
-
+  console.log(ast);
   return new Visitor().visit(ast);
 };
 
