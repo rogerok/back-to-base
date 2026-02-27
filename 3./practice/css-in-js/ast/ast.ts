@@ -131,10 +131,14 @@ class Visitor {
   visitBinaryExpression = (expression: BinaryExpression): number => {
     const handler = getArithmeticHandler(expression.operator);
 
-    const left = this.visit(expression.left!);
-    const right = this.visit(expression.right!);
+    if ("left" in expression && "right" in expression && expression.left && expression.right) {
+      const left = this.visit(expression.left);
+      const right = this.visit(expression.right);
 
-    return handler.execute(left, right);
+      if (left && right) {
+        return handler.execute(left, right);
+      }
+    }
 
     throw new Error(`Invalid operation: ${expression.operator}`);
   };
@@ -144,7 +148,6 @@ const input = "(2 + 3) * 4";
 
 export const evaluator = (input: string): number => {
   const ast = generateAST(input);
-  console.log(ast);
   return new Visitor().visit(ast);
 };
 
