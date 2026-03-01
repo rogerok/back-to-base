@@ -3,10 +3,10 @@ import { Component } from "./component.ts";
 import { Engine } from "./engine.ts";
 import { Entity } from "./entity.ts";
 
-export class System {
-  constructor(
+export abstract class System {
+  protected constructor(
     protected priority: number = 0,
-    protected components: Component[],
+    protected components: Component[] = [],
   ) {}
 
   private _engine: Engine | null = null;
@@ -16,7 +16,7 @@ export class System {
   }
 
   set engine(engine: Engine | null): void {
-    this.engine = engine;
+    this._engine = engine;
   }
 
   private _updating = false;
@@ -30,10 +30,12 @@ export class System {
   get active(): boolean {
     return this._active;
   }
+
+  onAddedToEngine(engine: Engine) {}
 }
 
-export abstract class AbstractSystem<T extends Entity = Entity> extends System {
-  constructor(
+export abstract class AbstractEntitySystem<T extends Entity = Entity> extends System {
+  protected constructor(
     protected priority: number = 0,
     protected components: Component[],
   ) {

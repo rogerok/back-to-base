@@ -6,8 +6,8 @@ export interface Component extends Record<string, any> {
   type?: string;
 }
 
-export class ComponentsCollection<T = Component> {
-  private map: Map<Class<T>, T> = new Map();
+export class ComponentsCollection {
+  private map: Map<Class<unknown>, unknown> = new Map();
 
   constructor(private _id?: string) {}
 
@@ -15,21 +15,20 @@ export class ComponentsCollection<T = Component> {
     return this._id;
   }
 
-  get(constructor: Class<T>): T {
+  get<T extends Component>(constructor: Class<T>): T {
     if (!this.map.has(constructor)) {
       throw new Error(`No map found for ${constructor.name}`);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return this.map.get(constructor)!;
+    return this.map.get(constructor) as T;
   }
 
-  add(constructor: Class<T>) {
-    this.map.set(constructor, new constructor());
+  add<T extends Component>(val: Class<T>) {
+    this.map.set(val, new val());
   }
 
-  delete(constructor: Class<T>) {
-    this.map.delete(constructor);
+  delete<T extends Component>(val: Class<T>) {
+    this.map.delete(val);
   }
 
   all() {

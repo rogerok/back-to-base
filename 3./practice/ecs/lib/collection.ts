@@ -5,7 +5,7 @@ export class Collection<T = any> {
     return this._items;
   }
 
-  set add(item: T) {
+  add(item: T) {
     this._items.push(item);
   }
 }

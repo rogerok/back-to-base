@@ -19,7 +19,7 @@ export class Entity {
   private _components = new ComponentsCollection();
 
   get components(): ComponentsCollection {
-    return this.components;
+    return this._components;
   }
 }
 

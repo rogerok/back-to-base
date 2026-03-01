@@ -38,6 +38,7 @@
     }
   },
   "dependencies": {
+    "pixi.js": "6.2.2",
     "ts-pattern": "^5.9.0",
     "zod": "^4.3.6"
   }
