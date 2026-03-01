@@ -5,15 +5,8 @@ import { MyEntity } from "../entities/my-entity.ts";
 import { Engine } from "../lib/engine.ts";
 import { AbstractEntitySystem } from "../lib/system.ts";
 
-/**
- * The gravity system is responsible for increasing the vertical velocity
- * of each entity if not grounded.
- *
- * @export
- * @class GravitySystem
- * @extends {System}
- */
 export class GravitySystem extends AbstractEntitySystem<MyEntity> {
+  // @ts-ignore
   canvas: HTMLCanvasElement;
 
   constructor(
@@ -23,21 +16,11 @@ export class GravitySystem extends AbstractEntitySystem<MyEntity> {
     super(priority, [Position, Velocity, Size]);
   }
 
-  /**
-   * Caches the filter and canvas.
-   *
-   * @inheritdoc
-   * @param {Engine} engine
-   */
   onAddedToEngine(engine: Engine) {
     super.onAddedToEngine(engine);
     this.canvas = <HTMLCanvasElement>document.getElementById("canvas");
   }
 
-  /**
-   * Makes each entity moves down, if not grounded.
-   * The velocity will be increased based on current size component.
-   */
   processEntity(entity: MyEntity) {
     const position = entity.components.get(Position);
     const velocity = entity.components.get(Velocity);

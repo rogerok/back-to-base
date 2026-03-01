@@ -1,37 +1,45 @@
+import { Collection } from "./collection.ts";
 import { Class } from "./types.ts";
 
 export interface Component extends Record<string, any> {
   id?: string;
-
-  type?: string;
 }
 
-export class ComponentsCollection {
-  private map: Map<Class<unknown>, unknown> = new Map();
+export interface ComponentClass<T extends Component> extends Class<T> {
+  readonly id?: string;
+}
 
-  constructor(private _id?: string) {}
+export class ComponentsCollection<Comp extends Component = Component> extends Collection<Comp> {
+  // private map = new Map<ComponentClass<Comp>, Comp[]>();
 
-  get id() {
-    return this._id;
+  constructor(elements: Comp[] = []) {
+    super(elements);
   }
+  //
+  // updateMap = (cls: ComponentClass<Comp>) => {
+  //   const filtered = this.all.filter((el) => (el.constructor as ComponentClass<Comp>) === cls);
+  //
+  //   this.map.set(cls, filtered);
+  // };
 
-  get<T extends Component>(constructor: Class<T>): T {
-    if (!this.map.has(constructor)) {
-      throw new Error(`No map found for ${constructor.name}`);
-    }
+  // addComp = (...elements: Comp[]) => {
+  //   elements.forEach((el) =>
+  //     this.map.set(el.constructor as ComponentClass<Comp>, [
+  //       el,
+  //       ...this.map.get(el.constructor as ComponentClass<Comp>),
+  //     ]),
+  //   );
+  // };
 
-    return this.map.get(constructor) as T;
-  }
+  /*  get = <T extends Comp>(cls: Class<T>): T => {
+    return this.map.get(cls) as T;
+  };*/
+  //
+  // delete = <T extends Component>(val: Class<T>) => {
+  //   this.map.delete(val);
+  // };
 
-  add<T extends Component>(val: Class<T>) {
-    this.map.set(val, new val());
-  }
-
-  delete<T extends Component>(val: Class<T>) {
-    this.map.delete(val);
-  }
-
-  all() {
-    return this.map;
+  get<T extends Comp>(cls: ComponentClass<T>): T {
+    return this.all.filter((c) => c.constructor === cls)[0] as T;
   }
 }

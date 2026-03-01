@@ -1,14 +1,7 @@
+import { Velocity } from "../components/velocity.ts";
 import { Engine } from "../lib/engine.ts";
 import { System } from "../lib/system.ts";
 
-/**
- * The resize system is responsible for making the rectangles bounce up
- * if the user shrinks the window height.
- *
- * @export
- * @class ResizeSystem
- * @extends {System}
- */
 export class ResizeSystem extends System {
   // aspect: Aspect;
   canvas: HTMLCanvasElement;
@@ -25,30 +18,20 @@ export class ResizeSystem extends System {
     });
   }
 
-  /**
-   * Caches the filter and canvas.
-   *
-   * @inheritdoc
-   * @param {Engine} engine
-   */
   onAddedToEngine(engine: Engine) {
     // this.aspect = Aspect.for(engine).one(Velocity);
     this.canvas = <HTMLCanvasElement>document.getElementById("canvas");
   }
 
-  /**
-   * Runs the actual bounce logic on each entity,
-   * if previously resized.
-   */
   process() {
     if (!this.dirty) return;
     const diff = Math.min(20, this.oldHeight - window.innerHeight);
-    // this.aspect.entities.forEach((entity) => {
-    //   const velocity = entity.components.get(Velocity);
-    //   if (velocity.y === 0) {
-    //     velocity.y -= diff;
-    //   }
-    // });
+    this.aspect.entities.forEach((entity) => {
+      const velocity = entity.components.get(Velocity);
+      if (velocity.y === 0) {
+        velocity.y -= diff;
+      }
+    });
     this.oldHeight = window.innerHeight;
     this.dirty = false;
   }

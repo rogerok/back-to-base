@@ -1,26 +1,20 @@
 import { Collection } from "./collection.ts";
 import { Component, ComponentsCollection } from "./component.ts";
-import { Class } from "./types.ts";
 
-export class Entity {
-  constructor(
-    private readonly _id?: string,
-    components: Class<Component>[] = [],
-  ) {
-    components.forEach((comp) => {
-      this.components.add(comp);
-    });
+export abstract class AbstractEntity<Comp extends Component = Component> {
+  constructor(private readonly _id?: string) {
+    this._components = new ComponentsCollection();
   }
 
   get id() {
     return this._id;
   }
 
-  private _components = new ComponentsCollection();
+  private _components = new ComponentsCollection<Comp>();
 
-  get components(): ComponentsCollection {
+  get components() {
     return this._components;
   }
 }
 
-export class EntitiesCollection extends Collection<Class<Entity>> {}
+export class EntitiesCollection extends Collection<AbstractEntity> {}

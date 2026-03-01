@@ -1,13 +1,12 @@
 import { Collection } from "./collection.ts";
-import { Component } from "./component.ts";
+import { Component, ComponentClass } from "./component.ts";
 import { Engine } from "./engine.ts";
-import { Entity } from "./entity.ts";
+import { AbstractEntity } from "./entity.ts";
 
-export abstract class System {
-  protected constructor(
-    protected priority: number = 0,
-    protected components: Component[] = [],
-  ) {}
+type Comp = Component | ComponentClass<Component>;
+
+export abstract class System<T = any> {
+  protected constructor(protected priority: number = 0) {}
 
   private _engine: Engine | null = null;
 
@@ -15,34 +14,48 @@ export abstract class System {
     return this._engine;
   }
 
-  set engine(engine: Engine | null): void {
+  set engine(engine: Engine | null) {
     this._engine = engine;
+    if (engine) {
+      this.onAddedToEngine(engine);
+    }
   }
 
-  private _updating = false;
+  onAddedToEngine(engine: Engine): void {}
 
-  get updating(): boolean {
-    return this._updating;
+  abstract process(options: T): void;
+
+  run(options: T) {
+    this.process(options);
   }
-
-  private _active = false;
-
-  get active(): boolean {
-    return this._active;
-  }
-
-  onAddedToEngine(engine: Engine) {}
 }
 
-export abstract class AbstractEntitySystem<T extends Entity = Entity> extends System {
+export abstract class AbstractEntitySystem<
+  T extends AbstractEntity = AbstractEntity,
+> extends System {
   protected constructor(
-    protected priority: number = 0,
-    protected components: Component[],
+    protected priority = 0,
+    protected components: Comp[] = [],
   ) {
-    super(priority, components);
+    super(priority);
   }
 
-  processEntity(entity: Entity): void {}
+  process = <Options>(options?: Options) => {
+    const entities = this.engine?.entities.all;
+
+    if (!entities?.length) return;
+
+    this.engine?.entities.all.forEach((entity, idx) => {
+      this.processEntity(<T>entity, idx, <T[]>entities, options);
+    });
+  };
+
+  abstract processEntity<Options>(
+    entity: T,
+    index?: number,
+    entities?: T[],
+    options?: Options,
+  ): void;
 }
 
 export class EntitySystemCollection<T extends System = System> extends Collection<T> {

@@ -1,6 +1,6 @@
-import { Entity } from "../lib/entity.ts";
+import { AbstractEntity } from "../lib/entity.ts";
 
-export class MyEntity extends Entity {
+export class MyEntity extends AbstractEntity {
   constructor() {
     super(crypto.randomUUID());
   }

@@ -42,7 +42,7 @@ function addEntity(times: number) {
     entity.components.add(size);
     toAdd.push(entity);
   }
-  engine.entities.add.apply(engine.entities, toAdd);
+  engine.entities.add(...toAdd);
 }
 
 /**

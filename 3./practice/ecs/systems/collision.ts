@@ -13,27 +13,18 @@ import { AbstractEntitySystem } from "../lib/system.ts";
  * @extends {System}
  */
 export class CollisionSystem extends AbstractEntitySystem<MyEntity> {
+  // @ts-ignore
   canvas: HTMLCanvasElement;
 
   constructor(priority: number = 0) {
     super(priority, [Position, Velocity, Size]);
   }
 
-  /**
-   * Caches the filter and canvas.
-   *
-   * @inheritdoc
-   * @param {Engine} engine
-   */
   onAddedToEngine(engine: Engine) {
     super.onAddedToEngine(engine);
     this.canvas = <HTMLCanvasElement>document.getElementById("canvas");
   }
 
-  /**
-   * Performs the collision detection,
-   * i.e. makes sure each entity stays in the scene.
-   */
   processEntity(entity: MyEntity) {
     const position = entity.components.get(Position);
     const velocity = entity.components.get(Velocity);

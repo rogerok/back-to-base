@@ -1,15 +1,10 @@
 import { Application, Graphics, Text } from "pixi.js";
 
+import { Position } from "../components/position.ts";
+import { Size } from "../components/size.ts";
 import { Engine } from "../lib/engine.ts";
 import { System } from "../lib/system.ts";
 
-/**
- * Renders each entity, based its position and size component.
- *
- * @export
- * @class RenderingSystem
- * @extends {System}
- */
 export class RenderingSystem extends System {
   // aspect: Aspect;
   pixiApp: Application;
@@ -41,39 +36,39 @@ export class RenderingSystem extends System {
    * @inheritdoc
    * @param {Engine} engine
    */
-  // onAddedToEngine(engine: Engine) {
-  //   this.aspect = Aspect.for(engine).all(Position, Size);
-  // }
+  onAddedToEngine(engine: Engine) {
+    this.aspect = Aspect.for(engine).all(Position, Size);
+  }
 
   /**
    * Renders each entity as a red rectangle.
    *
    * @param {number} delta
    */
-  // process(delta: number) {
-  //   this.timePassed += delta;
-  //   if (this.timePassed > 300) {
-  //     this.fps.text =
-  //       "FPS: " +
-  //       Math.floor(1000 / delta) +
-  //       "\n" +
-  //       "ms: " +
-  //       delta +
-  //       "\n" +
-  //       "entities: " +
-  //       this.engine.entities.length;
-  //     this.timePassed = 0;
-  //   }
-  //   const entities = this.aspect.entities;
-  //   this.graphics.clear();
-  //   this.graphics.beginFill(0xaa1100);
-  //   // this.graphics.lineStyle(1, 0xffffff);
-  //   for (const entity of entities) {
-  //     const position = entity.components.get(Position);
-  //     const size = entity.components.get(Size);
-  //     this.graphics.drawRect(position.x, position.y, size.width, size.height);
-  //   }
-  //   this.graphics.endFill();
-  //   this.pixiApp.render();
-  // }
+  process(delta: number) {
+    this.timePassed += delta;
+    // if (this.timePassed > 300) {
+    //   this.fps.text =
+    //     "FPS: " +
+    //     Math.floor(1000 / delta) +
+    //     "\n" +
+    //     "ms: " +
+    //     delta +
+    //     "\n" +
+    //     "entities: " +
+    //     this.engine.entities.length;
+    //   this.timePassed = 0;
+    // }
+    const entities = this.aspect.entities;
+    this.graphics.clear();
+    this.graphics.beginFill(0xaa1100);
+    // this.graphics.lineStyle(1, 0xffffff);
+    for (const entity of entities) {
+      const position = entity.components.get(Position);
+      const size = entity.components.get(Size);
+      this.graphics.drawRect(position.x, position.y, size.width, size.height);
+    }
+    this.graphics.endFill();
+    this.pixiApp.render();
+  }
 }
