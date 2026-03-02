@@ -1,15 +1,19 @@
 import { Component, ComponentContainer } from "./component.ts";
 
 export abstract class AbstractEntity {
-  components = new ComponentContainer();
-
   constructor(
     public id: string,
     components: Component[] = [],
   ) {
     components.forEach((component) => {
-      this.components.add(component);
+      this._components.add(component);
     });
+  }
+
+  private _components = new ComponentContainer();
+
+  get components() {
+    return this._components;
   }
 }
 
@@ -26,3 +30,5 @@ export class EntitiesContainer {
     this.entitiesToDestroy.push(entity);
   }
 }
+
+export class EntitiesCollection {}

@@ -3,7 +3,11 @@
 import { Engine } from "./engine.ts";
 import { AbstractEntity } from "./entity.ts";
 
-export abstract class AbstractSystem<T = any> {
+export interface SystemListener {
+  onAddedToEngine?: (engine: Engine) => void;
+}
+
+export abstract class AbstractSystem<T = any, L extends SystemListener = SystemListener> {
   constructor(private priority: number = 0) {}
 
   public _engine: Engine | null = null;
@@ -12,14 +16,17 @@ export abstract class AbstractSystem<T = any> {
     return this._engine;
   }
 
-  set engine(engine: Engine | null) {
+  public abstract update?:(entities: Set<AbstractEntity>): void;
+
+  abstract process(options: T): void;
+
+  setEngine(engine: Engine | null) {
     if (engine) {
       this._engine = engine;
     }
   }
 
-  public abstract update(entities: Set<AbstractEntity>): void;
-  abstract process(options: T): void;
+  onAddedToEngine(engine: Engine) {}
 
   run(options: T) {
     this.process(options);
@@ -37,4 +44,16 @@ export abstract class AbstractEntitySystem<
   }
 
   abstract processEntity(entity: T): void;
+}
+
+export class EntitySystemCollection<T extends AbstractSystem = AbstractSystem> {
+  // extends Collection<T>
+
+  vals = new Set<AbstractSystem>();
+
+  constructor(private engine: Engine) {}
+
+  add(system: AbstractSystem) {
+    this.vals.add(system);
+  }
 }

@@ -1,17 +1,10 @@
 import { Position } from "../components/position.ts";
 import { Size } from "../components/size.ts";
 import { Velocity } from "../components/velocity.ts";
+import { Engine } from "../engine.ts";
 import { MyEntity } from "../entities/my-entity.ts";
-import { Engine } from "../lib/engine.ts";
-import { AbstractEntitySystem } from "../lib/system.ts";
+import { AbstractEntitySystem } from "../system.ts";
 
-/**
- * A system which handles collisions with the bounds of the scene.
- *
- * @export
- * @class CollisionSystem
- * @extends {System}
- */
 export class CollisionSystem extends AbstractEntitySystem<MyEntity> {
   // @ts-ignore
   canvas: HTMLCanvasElement;
