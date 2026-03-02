@@ -1,6 +1,4 @@
-export interface Component extends Record<string, any> {
-  id?: string;
-}
+import { Component } from "./component.ts";
 
 export interface ComponentClass<T extends Component> extends Class<T> {
   readonly id?: string;

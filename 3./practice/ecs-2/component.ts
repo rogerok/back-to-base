@@ -1,17 +1,19 @@
 /* eslint-disable @typescript-eslint/no-unsafe-function-type */
 
-export abstract class AbstractComponent {}
+export interface Component extends Record<string, any> {
+  id?: string;
+}
 
-type ComponentClass<T extends AbstractComponent> = new (...args: any[]) => T;
+export type ComponentClass<T extends Component> = new (...args: any[]) => T;
 
 export class ComponentContainer {
-  private map = new Map<Function, AbstractComponent>();
+  private map = new Map<Function, Component>();
 
-  add = (component: AbstractComponent): void => {
+  add = (component: Component): void => {
     this.map.set(component.constructor, component);
   };
 
-  get = <T extends AbstractComponent>(componentClass: ComponentClass<T>) => {
+  get = <T extends Component>(componentClass: ComponentClass<T>) => {
     return this.map.get(componentClass) as T;
   };
 

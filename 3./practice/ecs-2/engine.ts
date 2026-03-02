@@ -6,3 +6,5 @@ export class Engine {
   entities = new Map<AbstractEntity, ComponentContainer>();
   systems = new Map<AbstractSystem, Set<AbstractEntity>>();
 }
+
+const engine = new Engine();

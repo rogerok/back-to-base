@@ -1,6 +1,17 @@
-import { ComponentContainer } from "./component.ts";
+import { Component, ComponentContainer } from "./component.ts";
 
-export abstract class AbstractEntity<T> {}
+export abstract class AbstractEntity {
+  components = new ComponentContainer();
+
+  constructor(
+    public id: string,
+    components: Component[] = [],
+  ) {
+    components.forEach((component) => {
+      this.components.add(component);
+    });
+  }
+}
 
 export class EntitiesContainer {
   private map = new Map<AbstractEntity, ComponentContainer>();
