@@ -45,7 +45,6 @@ export class CustomPromise<T = any> {
     if (value && typeof value === "object" && "then" in value && typeof value.then === "function") {
       return new CustomPromise((resolve, reject) => {
         // @ts-ignore
-
         try {
           value.then(resolve, reject);
         } catch (error) {
@@ -132,3 +131,10 @@ export class CustomPromise<T = any> {
 
   catch = (reject: Reject<T>) => this.then(undefined, reject);
 }
+
+const p = new CustomPromise((resolve) => {
+  resolve("hello");
+});
+p.then((v) => v + " world").then((v) => v.toUpperCase());
+
+Promise;
