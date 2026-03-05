@@ -72,9 +72,11 @@ export class CustomPromise<T> {
         value: v,
       };
 
-      this.resolveReactions.forEach((cb) => {
-        setTimeout(cb, 0, v);
-      });
+      if (this.resolveReactions.length) {
+        this.resolveReactions.forEach((cb) => {
+          setTimeout(cb, 0, v);
+        });
+      }
 
       this.resolveReactions = [];
       this.rejectReactions = [];
@@ -89,9 +91,11 @@ export class CustomPromise<T> {
         value: v,
       };
 
-      this.rejectReactions.forEach((cb) => {
-        setTimeout(cb, 0, v);
-      });
+      if (this.rejectReactions.length) {
+        this.rejectReactions.forEach((cb) => {
+          setTimeout(cb, 0, v);
+        });
+      }
 
       this.resolveReactions = [];
       this.rejectReactions = [];
@@ -121,9 +125,9 @@ export class CustomPromise<T> {
         }
       };
 
-      match<State>(this.result.state)
-        .with("fulfilled", () => setTimeout(fullfillCb, 0, this.result.value))
-        .with("rejected", () => setTimeout(rejectCb, 0, this.result.value))
+      match<Result<T>>(this.result)
+        .with({ state: "fulfilled" }, ({ value }) => setTimeout(fullfillCb, 0, value))
+        .with({ state: "rejected" }, ({ value }) => setTimeout(rejectCb, 0, value))
         .otherwise(() => {
           this.rejectReactions.push(rejectCb);
           this.resolveReactions.push(fullfillCb);
