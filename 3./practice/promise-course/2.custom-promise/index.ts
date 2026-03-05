@@ -24,43 +24,42 @@ interface ResultPending extends BaseResult {
 
 type Result<T> = ResultFulfilled<T> | ResultPending | ResultRejected;
 
-export class CustomPromise<T = any> {
-  promiseFulfillReactions: Resolve<T>[] = [];
-  promiseRejectReactions: Reject[] = [];
-
+export class CustomPromise<T> {
   result: Result<T> = {
     state: "pending",
     value: undefined,
   };
 
+  rejectReactions: Reject[] = [];
+  resolveReactions: Resolve<T>[] = [];
+
   constructor(executor?: (resolve: Resolve, reject: Reject) => void) {
     if (typeof executor !== "function") {
       throw new TypeError("Executor must be a function");
     }
-
     executor(this.resolve, this.reject);
   }
 
-  static resolve<T>(value: T) {
-    if (value && typeof value === "object" && "then" in value && typeof value.then === "function") {
-      return new CustomPromise((resolve, reject) => {
-        // @ts-ignore
+  static resolve<V>(v: V) {
+    if (v && typeof v === "object" && "then" in v && typeof v.then === "function") {
+      return new CustomPromise<V>((resolve, reject) => {
         try {
-          value.then(resolve, reject);
-        } catch (error) {
-          reject(error);
+          const fn = v.then as (res: Resolve<V>, reject: Reject) => void;
+          fn(resolve, reject);
+        } catch (e) {
+          reject(e);
         }
       });
     }
 
-    return new CustomPromise((resolve) => {
-      resolve(value);
+    return new CustomPromise<V>((resolve) => {
+      resolve(v);
     });
   }
 
-  static reject<T>(reason: T) {
+  static reject(v: any) {
     return new CustomPromise((_, reject) => {
-      reject(reason);
+      reject(v);
     });
   }
 
@@ -71,7 +70,7 @@ export class CustomPromise<T = any> {
         value: v,
       };
 
-      this.promiseFulfillReactions.forEach((cb) => {
+      this.resolveReactions.forEach((cb) => {
         setTimeout(cb, 0, v);
       });
     }
@@ -85,32 +84,32 @@ export class CustomPromise<T = any> {
         value: v,
       };
 
-      this.promiseRejectReactions.forEach((cb) => {
+      this.rejectReactions.forEach((cb) => {
         setTimeout(cb, 0, v);
       });
     }
   };
 
   then = (
-    resolve: (v: T) => T = (v) => v,
-    reject: (v: any) => any = (v) => {
+    onFulfill: (v: T) => T = (v) => v,
+    onReject: (v: any) => any = (v) => {
       throw v;
     },
   ) => {
-    return new CustomPromise((res, rej) => {
+    return new CustomPromise((resolve, reject) => {
       const fullfillCb = (v: T) => {
         try {
-          res(resolve(v));
+          resolve(onFulfill(v));
         } catch (err) {
-          rej(err);
+          reject(err);
         }
       };
 
       const rejectCb = (v: any) => {
         try {
-          res(reject(v));
+          resolve(onReject(v));
         } catch (err) {
-          rej(err);
+          reject(err);
         }
       };
 
@@ -123,18 +122,16 @@ export class CustomPromise<T = any> {
       }
 
       if (this.result.state === "pending") {
-        this.promiseRejectReactions.push(rejectCb);
-        this.promiseFulfillReactions.push(fullfillCb);
+        this.rejectReactions.push(rejectCb);
+        this.resolveReactions.push(fullfillCb);
       }
     });
   };
 
-  catch = (reject: Reject<T>) => this.then(undefined, reject);
+  catch = (reject: Reject) => this.then(undefined, reject);
 }
 
-const p = new CustomPromise((resolve) => {
+const p = new CustomPromise<string>((resolve) => {
   resolve("hello");
 });
 p.then((v) => v + " world").then((v) => v.toUpperCase());
-
-Promise;
