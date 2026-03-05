@@ -1,3 +1,5 @@
+import { match } from "ts-pattern";
+
 type Resolve<T = any> = (v: T) => void;
 type Reject<T = any> = (v: T) => void;
 
@@ -30,8 +32,8 @@ export class CustomPromise<T> {
     value: undefined,
   };
 
-  rejectReactions: Reject[] = [];
-  resolveReactions: Resolve<T>[] = [];
+  resolveReactions: ((v: T) => void)[] = [];
+  rejectReactions: ((v: any) => void)[] = [];
 
   constructor(executor?: (resolve: Resolve, reject: Reject) => void) {
     if (typeof executor !== "function") {
@@ -57,13 +59,13 @@ export class CustomPromise<T> {
     });
   }
 
-  static reject(v: any) {
-    return new CustomPromise((_, reject) => {
+  static reject<V = any>(v: V): CustomPromise<V> {
+    return new CustomPromise<V>((_, reject) => {
       reject(v);
     });
   }
 
-  resolve = (v: T) => {
+  resolve = (v: T): void => {
     if (this.result.state === "pending") {
       this.result = {
         state: "fulfilled",
@@ -73,10 +75,13 @@ export class CustomPromise<T> {
       this.resolveReactions.forEach((cb) => {
         setTimeout(cb, 0, v);
       });
+
+      this.resolveReactions = [];
+      this.rejectReactions = [];
     }
   };
 
-  reject = (v: any) => {
+  reject = (v: any): void => {
     if (this.result.state === "pending") {
       this.result = {
         state: "rejected",
@@ -87,16 +92,19 @@ export class CustomPromise<T> {
       this.rejectReactions.forEach((cb) => {
         setTimeout(cb, 0, v);
       });
+
+      this.resolveReactions = [];
+      this.rejectReactions = [];
     }
   };
 
-  then = (
-    onFulfill: (v: T) => T = (v) => v,
+  then = <V>(
+    onFulfill: (v: T) => V = ((v: T) => v) as unknown as (v: T) => V,
     onReject: (v: any) => any = (v) => {
       throw v;
     },
-  ) => {
-    return new CustomPromise((resolve, reject) => {
+  ): CustomPromise<V> => {
+    return new CustomPromise<V>((resolve, reject) => {
       const fullfillCb = (v: T) => {
         try {
           resolve(onFulfill(v));
@@ -113,25 +121,15 @@ export class CustomPromise<T> {
         }
       };
 
-      if (this.result.state === "fulfilled") {
-        setTimeout(fullfillCb, 0, this.result.value);
-      }
-
-      if (this.result.state === "rejected") {
-        setTimeout(rejectCb, 0, this.result.value);
-      }
-
-      if (this.result.state === "pending") {
-        this.rejectReactions.push(rejectCb);
-        this.resolveReactions.push(fullfillCb);
-      }
+      match<State>(this.result.state)
+        .with("fulfilled", () => setTimeout(fullfillCb, 0, this.result.value))
+        .with("rejected", () => setTimeout(rejectCb, 0, this.result.value))
+        .otherwise(() => {
+          this.rejectReactions.push(rejectCb);
+          this.resolveReactions.push(fullfillCb);
+        });
     });
   };
 
   catch = (reject: Reject) => this.then(undefined, reject);
 }
-
-const p = new CustomPromise<string>((resolve) => {
-  resolve("hello");
-});
-p.then((v) => v + " world").then((v) => v.toUpperCase());

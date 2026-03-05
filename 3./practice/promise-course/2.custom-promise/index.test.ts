@@ -1,4 +1,4 @@
-import { CustomPromise2 } from "./index2.ts";
+import { CustomPromise } from "./index.ts";
 
 const resolveMessage = "Resolved!";
 const fulfillMessage = "Fulfilled";
@@ -9,19 +9,19 @@ const expectedResolveMessages = [fulfillMessage, resolveMessage];
 const expectedRejectMessages = [rejectError.message, resolveMessage];
 
 test("is not Promise", () => {
-  expect(new CustomPromise2(() => {})).not.toBeInstanceOf(Promise);
+  expect(new CustomPromise(() => {})).not.toBeInstanceOf(Promise);
 });
 
 test("executor not a function", () => {
-  expect(() => new CustomPromise2()).toThrow("Executor must be a function");
+  expect(() => new CustomPromise()).toThrow("Executor must be a function");
 });
 
 test("resolve 1", async () => {
-  const actualString = await CustomPromise2.resolve(resolveMessage);
+  const actualString = await CustomPromise.resolve(resolveMessage);
   expect(actualString).toEqual(resolveMessage);
 });
 test("resolve nonThenableObject", async () => {
-  const nonThenableObject = await CustomPromise2.resolve({ resolveMessage, then: "catch" });
+  const nonThenableObject = await CustomPromise.resolve({ resolveMessage, then: "catch" });
   expect(nonThenableObject).toEqual({ resolveMessage, then: "catch" });
 });
 
@@ -32,7 +32,7 @@ test("resolve resolvedThenable", async () => {
       throw rejectError;
     },
   };
-  const actualResolvedThenable = await CustomPromise2.resolve(resolvedThenable);
+  const actualResolvedThenable = await CustomPromise.resolve(resolvedThenable);
   expect(actualResolvedThenable).toEqual("Fulfilled!");
 });
 
@@ -44,14 +44,14 @@ test("resolve rejectedThenable", async () => {
       onFulfill("Fulfilled!"); // должно игнорироваться
     },
   };
-  await expect(CustomPromise2.resolve(rejectedThenable)).rejects.toThrow(rejectError);
+  await expect(CustomPromise.resolve(rejectedThenable)).rejects.toThrow(rejectError);
 });
 
 test("resolve()", async () => {
-  const actualString = await CustomPromise2.resolve(resolveMessage);
+  const actualString = await CustomPromise.resolve(resolveMessage);
   expect(actualString).toEqual(resolveMessage);
 
-  const nonThenableObject = await CustomPromise2.resolve({ resolveMessage, then: "catch" });
+  const nonThenableObject = await CustomPromise.resolve({ resolveMessage, then: "catch" });
   expect(nonThenableObject).toEqual({ resolveMessage, then: "catch" });
 
   const resolvedThenable = {
@@ -60,7 +60,7 @@ test("resolve()", async () => {
       throw rejectError;
     },
   };
-  const actualResolvedThenable = await CustomPromise2.resolve(resolvedThenable);
+  const actualResolvedThenable = await CustomPromise.resolve(resolvedThenable);
   expect(actualResolvedThenable).toEqual("Fulfilled!");
 
   const rejectedThenable = {
@@ -70,22 +70,22 @@ test("resolve()", async () => {
       onFulfill("Fulfilled!"); // должно игнорироваться
     },
   };
-  await expect(CustomPromise2.resolve(rejectedThenable)).rejects.toThrow(rejectError);
+  await expect(CustomPromise.resolve(rejectedThenable)).rejects.toThrow(rejectError);
 });
 
 test("reject()", async () => {
-  await expect(CustomPromise2.reject(rejectError)).rejects.toThrow(rejectError);
+  await expect(CustomPromise.reject(rejectError)).rejects.toThrow(rejectError);
 
   const rejectedThenable = {
     then: (onFulfill, onReject) => {
       onReject(rejectError);
     },
   };
-  await expect(CustomPromise2.resolve(rejectedThenable)).rejects.toThrow(rejectError);
+  await expect(CustomPromise.resolve(rejectedThenable)).rejects.toThrow(rejectError);
 });
 
 test("then() and catch()", async () => {
-  const resolvedPromise = new CustomPromise2((resolve, reject) => {
+  const resolvedPromise = new CustomPromise((resolve, reject) => {
     resolve(resolveMessage);
     reject(rejectError); // должно игнорироваться
   });
@@ -103,7 +103,7 @@ test("then() and catch()", async () => {
     .catch((message) => `Catch! ${message}`); // должно игнорироваться
   expect(resolveChainResult).toEqual(`New another ${resolveMessage}`.split(" ").reverse().join(""));
 
-  const catchPromise = new CustomPromise2((resolve, reject) => {
+  const catchPromise = new CustomPromise((resolve, reject) => {
     resolve(resolveMessage);
     reject(resolveMessage); // должно игнорироваться
   });
@@ -115,7 +115,7 @@ test("then() and catch()", async () => {
     .catch((error) => `Catch! ${error.message}`);
   expect(catchString).toEqual(`Catch! ${rejectError.message}`);
 
-  const rejectedPromise1 = new CustomPromise2((resolve, reject) => {
+  const rejectedPromise1 = new CustomPromise((resolve, reject) => {
     reject(rejectError);
     resolve(resolveMessage); // должно игнорироваться
   });
@@ -124,7 +124,7 @@ test("then() and catch()", async () => {
     .catch((error) => `Catch! Reject message: ${error.message}`);
   expect(rejectString).toEqual(`Catch! Reject message: ${rejectError.message}`);
 
-  const rejectedPromise2 = new CustomPromise2((resolve, reject) => {
+  const rejectedPromise2 = new CustomPromise((resolve, reject) => {
     reject(rejectError);
     resolve(resolveMessage); // должно игнорироваться
   });
@@ -139,7 +139,7 @@ test("then() and catch()", async () => {
 });
 
 test("event loop", async () => {
-  const resolvedPromise = new CustomPromise2((resolve) => {
+  const resolvedPromise = new CustomPromise((resolve) => {
     resolve(resolveMessage);
   });
   expect(resolveMessages).toHaveLength(0);
@@ -152,7 +152,7 @@ test("event loop", async () => {
   await processedResolvedPromise.then(() => resolveMessages.push(resolveMessage));
   expect(resolveMessages).toEqual(expectedResolveMessages);
 
-  const rejectedPromise = new CustomPromise2((_, reject) => {
+  const rejectedPromise = new CustomPromise((_, reject) => {
     reject(rejectError);
   });
   expect(rejectMessages).toHaveLength(0);
