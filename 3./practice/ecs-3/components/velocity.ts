@@ -1,4 +1,4 @@
-import { Component } from "../component.ts";
+import { Component } from "../lib/component.ts";
 
 export class Velocity implements Component {
   constructor(

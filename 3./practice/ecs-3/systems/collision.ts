@@ -1,7 +1,6 @@
 import { Position } from "../components/position.ts";
 import { Size } from "../components/size.ts";
 import { Velocity } from "../components/velocity.ts";
-import { Engine } from "../engine.ts";
 import { MyEntity } from "../entities/my-entity.ts";
 import { AbstractEntitySystem } from "../system.ts";
 

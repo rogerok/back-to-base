@@ -7,21 +7,38 @@ export interface CollectionListener<T> {
 }
 
 export class Collection<T> extends Dispatcher<CollectionListener<T>> {
-  constructor(private items: Set<T> = new Set<T>()) {
+  private map = new Map<T, number>();
+
+  constructor(elements: T[] = []) {
     super();
+    this.addMany(...elements);
   }
 
-  get elements(): Set<T> {
-    return this.items;
+  private _elements: T[] = [];
+
+  get elements(): T[] {
+    return this._elements;
   }
 
   addOne(element: T): boolean {
-    if (this.elements.has(element)) {
+    if (this.map.has(element)) {
       return false;
     }
 
-    this.items.add(element);
+    this.map.set(element, this._elements.length);
+    this._elements.push(element);
+
     return true;
+  }
+
+  getOne(element: T): T {
+    const i = this.map.get(element);
+
+    if (i === undefined) {
+      throw new Error(`Cannot find element with element ${element}`);
+    }
+
+    return this._elements[i];
   }
 
   addMany(...elements: T[]): boolean {
@@ -37,10 +54,18 @@ export class Collection<T> extends Dispatcher<CollectionListener<T>> {
   }
 
   removeOne(element: T): boolean {
-    if (!this.elements.has(element)) {
+    const i = this.map.get(element);
+
+    if (i === undefined) {
       return false;
     }
-    this.items.delete(element);
+
+    this.map.delete(element);
+    this._elements.splice(i, 1);
+
+    for (let j = i; j < this._elements.length; j++) {
+      this.map.set(this._elements[j], j);
+    }
 
     return true;
   }
@@ -54,7 +79,8 @@ export class Collection<T> extends Dispatcher<CollectionListener<T>> {
   }
 
   clear(): void {
-    this.items.clear();
+    this._elements = [];
+    this.map = new Map();
     this.dispatch("onCleared");
   }
 }
