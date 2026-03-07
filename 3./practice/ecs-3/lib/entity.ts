@@ -17,7 +17,7 @@ export abstract class Entity<
   extends Dispatcher<L>
   implements CollectionListener<C>
 {
-  constructor(private id?: string) {
+  constructor() {
     super();
 
     this._components.addListener(this);
@@ -42,10 +42,8 @@ export abstract class Entity<
   }
 }
 
-export class EntityCollection<T extends Entity = Entity>
-  extends Collection<T>
-  implements CollectionListener<T>
-{
+export class EntityCollection<T extends Entity = Entity> extends Collection<T> {
+  // implements CollectionListener<T>
   constructor(...args: any[]) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     super(...args);

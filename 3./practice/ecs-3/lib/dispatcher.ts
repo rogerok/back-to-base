@@ -20,7 +20,7 @@ export abstract class Dispatcher<T> {
       const fn = listener[name];
 
       if (typeof fn === "function") {
-        fn.apply(listener, ...args);
+        fn.apply(listener, args);
       }
     });
   };

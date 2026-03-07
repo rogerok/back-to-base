@@ -2,7 +2,8 @@ import { Position } from "../components/position.ts";
 import { Size } from "../components/size.ts";
 import { Velocity } from "../components/velocity.ts";
 import { MyEntity } from "../entities/my-entity.ts";
-import { AbstractEntitySystem } from "../system.ts";
+import { Engine } from "../lib/engine.ts";
+import { AbstractEntitySystem } from "../lib/system.ts";
 
 export class CollisionSystem extends AbstractEntitySystem<MyEntity> {
   // @ts-ignore

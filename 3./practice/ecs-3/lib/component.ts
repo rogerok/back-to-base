@@ -9,6 +9,8 @@ export interface ComponentClass<T extends Component> extends Class<T> {
   readonly id?: string;
 }
 
+export type CompType = ComponentClass<Component>;
+
 export class ComponentCollection<C extends Component = Component>
   extends Collection<C>
   implements CollectionListener<C>

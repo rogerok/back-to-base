@@ -2,11 +2,11 @@ import { Application, Graphics, Text } from "pixi.js";
 
 import { Position } from "../components/position.ts";
 import { Size } from "../components/size.ts";
+import { Aspect } from "../lib/aspect.ts";
 import { Engine } from "../lib/engine.ts";
 import { System } from "../lib/system.ts";
 
 export class RenderingSystem extends System {
-  // aspect: Aspect;
   pixiApp: Application;
   graphics: Graphics;
   fps: Text;
@@ -47,19 +47,12 @@ export class RenderingSystem extends System {
    */
   process(delta: number) {
     this.timePassed += delta;
-    // if (this.timePassed > 300) {
-    //   this.fps.text =
-    //     "FPS: " +
-    //     Math.floor(1000 / delta) +
-    //     "\n" +
-    //     "ms: " +
-    //     delta +
-    //     "\n" +
-    //     "entities: " +
-    //     this.engine.entities.length;
-    //   this.timePassed = 0;
-    // }
-    const entities = this.aspect.entities;
+    if (this.timePassed > 300) {
+      this.fps.text =
+        "FPS: " + Math.floor(1000 / delta) + "\n" + "ms: " + delta + "\n" + "entities: ";
+      this.timePassed = 0;
+    }
+    const entities = this.aspect!.entities;
     this.graphics.clear();
     this.graphics.beginFill(0xaa1100);
     // this.graphics.lineStyle(1, 0xffffff);

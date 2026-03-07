@@ -11,7 +11,7 @@ export class Collection<T> extends Dispatcher<CollectionListener<T>> {
 
   constructor(elements: T[] = []) {
     super();
-    this.addMany(...elements);
+    this.add(...elements);
   }
 
   private _elements: T[] = [];
@@ -31,17 +31,21 @@ export class Collection<T> extends Dispatcher<CollectionListener<T>> {
     return true;
   }
 
+  has(element: T): boolean {
+    return this.map.has(element);
+  }
+
   getOne(element: T): T {
     const i = this.map.get(element);
 
     if (i === undefined) {
-      throw new Error(`Cannot find element with element ${element}`);
+      throw new Error(`Cannot find element with element ${String(element)}`);
     }
 
     return this._elements[i];
   }
 
-  addMany(...elements: T[]): boolean {
+  add(...elements: T[]): boolean {
     const added = elements.filter((e) => this.addOne(e));
 
     if (!added.length) {
@@ -70,7 +74,7 @@ export class Collection<T> extends Dispatcher<CollectionListener<T>> {
     return true;
   }
 
-  removeMany(...elements: T[]): boolean {
+  remove(...elements: T[]): boolean {
     const removed = elements.filter((e) => this.removeOne(e));
 
     this.dispatch("onRemoved", ...removed);

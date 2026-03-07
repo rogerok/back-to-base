@@ -1,9 +1,10 @@
 import { Velocity } from "../components/velocity.ts";
+import { Aspect } from "../lib/aspect.ts";
 import { Engine } from "../lib/engine.ts";
 import { System } from "../lib/system.ts";
 
 export class ResizeSystem extends System {
-  // aspect: Aspect;
+  // @ts-ignore
   canvas: HTMLCanvasElement;
   dirty: boolean;
   oldHeight: number;
@@ -19,14 +20,14 @@ export class ResizeSystem extends System {
   }
 
   onAddedToEngine(engine: Engine) {
-    // this.aspect = Aspect.for(engine).one(Velocity);
+    this.aspect = Aspect.for(engine).all(Velocity);
     this.canvas = <HTMLCanvasElement>document.getElementById("canvas");
   }
 
   process() {
     if (!this.dirty) return;
     const diff = Math.min(20, this.oldHeight - window.innerHeight);
-    this.aspect.entities.forEach((entity) => {
+    this.aspect?.entities.forEach((entity) => {
       const velocity = entity.components.get(Velocity);
       if (velocity.y === 0) {
         velocity.y -= diff;
