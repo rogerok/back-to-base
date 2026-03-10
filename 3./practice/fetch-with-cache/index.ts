@@ -71,7 +71,7 @@ const createCache = <T>(maxSize: number = 10): LRUCache<string, ResponseSuccess<
     maxSize: maxSize,
   });
 
-const cache = createCache<ResponseSuccess<{ id: string }>>();
+const cache = createCache<{ id: string }>();
 
 export const fetchWithCache = async <T>(
   urls: string[],
@@ -127,7 +127,6 @@ export const fetchWithCache = async <T>(
       processSuccess(resp);
     }
 
-    //   retry
     if (shouldRetry(resp.code)) {
       let attempt = 1;
 
@@ -176,10 +175,6 @@ export const fetchWithCache = async <T>(
 
     if (shouldNotRetry(resp.code)) {
       abortController.abort();
-
-      if (resp.status === "error") {
-        processFailure(resp);
-      }
     }
 
     if (resp.status === "error" && !response[idx]) {
