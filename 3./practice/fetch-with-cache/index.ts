@@ -139,6 +139,7 @@ export const fetchWithCache = async <T>(
             status: "error",
             url: url,
           });
+          break;
         }
 
         const retryDelay = exponentialBackoffWithJitter(attempt);
