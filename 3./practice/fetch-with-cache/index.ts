@@ -125,6 +125,13 @@ export const fetchWithCache = async <T>(
 
     if (resp.status === "success") {
       processSuccess(resp);
+      return;
+    }
+
+    if (shouldNotRetry(resp.code)) {
+      processFailure(resp);
+      abortController.abort();
+      return;
     }
 
     if (shouldRetry(resp.code)) {
@@ -138,7 +145,7 @@ export const fetchWithCache = async <T>(
             status: "error",
             url: url,
           });
-          break;
+          return;
         }
 
         const retryDelay = exponentialBackoffWithJitter(attempt);
@@ -160,26 +167,20 @@ export const fetchWithCache = async <T>(
 
         if (resp.status === "success") {
           processSuccess(resp);
-          break;
+          return;
         }
 
         if (shouldNotRetry(resp.code)) {
           processFailure(resp);
           abortController.abort();
-          break;
+          return;
         }
 
         attempt += 1;
       }
     }
 
-    if (shouldNotRetry(resp.code)) {
-      abortController.abort();
-    }
-
-    if (resp.status === "error" && !response[idx]) {
-      processFailure(resp);
-    }
+    processFailure(resp);
   };
 
   const timeoutId = setTimeout(() => {
@@ -196,23 +197,3 @@ export const fetchWithCache = async <T>(
 
   return response;
 };
-
-const resp = await fetchWithCache(
-  [
-    "https://dummyjson.com/products/1",
-    "https://dummyjson.com/products/2",
-    "https://dummyjson.com/products/3",
-    "https://dummyjson.com/http/500",
-  ],
-  cache,
-);
-
-const resp2 = await fetchWithCache(
-  [
-    "https://dummyjson.com/products/2",
-
-    "https://dummyjson.com/products/3",
-    "https://dummyjson.com/products/4",
-  ],
-  cache,
-);
