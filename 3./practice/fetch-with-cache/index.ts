@@ -46,7 +46,7 @@ const fetchFn = async <T>(url: string, signal: AbortSignal): Promise<ResponseTyp
   }
 };
 
-const sleep = (ms: number, signal: AbortSignal) => {
+const sleep = (ms: number, signal: AbortSignal): Promise<void> => {
   return new Promise((resolve, reject) => {
     const id = setTimeout(resolve, ms);
 
@@ -66,7 +66,7 @@ const sleep = (ms: number, signal: AbortSignal) => {
 const shouldRetry = (code: number): boolean => code >= 500;
 const shouldNotRetry = (code: number): boolean => code >= 400 && code < 500;
 
-const createCache = <T>(maxSize: number = 10) =>
+const createCache = <T>(maxSize: number = 10): LRUCache<string, ResponseSuccess<T>> =>
   new LRUCache<string, ResponseSuccess<T>>({
     maxSize: maxSize,
   });
@@ -95,7 +95,7 @@ export const fetchWithCache = async <T>(
     }
   });
 
-  const fetchSingle = async (url: string, idx: number) => {
+  const fetchSingle = async (url: string, idx: number): Promise<void> => {
     let resp = await fetchFn<T>(url, abortController.signal);
 
     const processSuccess = (resp: ResponseSuccess<T>): void => {
@@ -180,6 +180,10 @@ export const fetchWithCache = async <T>(
       if (resp.status === "error") {
         processFailure(resp);
       }
+    }
+
+    if (resp.status === "error" && !response[idx]) {
+      processFailure(resp);
     }
   };
 
