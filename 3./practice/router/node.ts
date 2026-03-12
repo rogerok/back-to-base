@@ -80,26 +80,17 @@ export class ParentNode extends Node {
       }
 
       const prefix = this.findCommonPrefix(child.path, path);
-
-      if (prefix.length < child.path.length) {
-        const remaining = child.path.slice(prefix.length);
-
-        const childHandler = child.handlerStorage?.getHandler(method);
-
-        if (childHandler) {
-          node.addRoute(method, childHandler);
-        }
-
-        child.path = remaining;
-        node.children.push(...child.children);
-        child.children = [];
-      }
-
       if (!prefix.length) {
         return;
       }
 
       if (prefix === child.path) {
+        this._insert(child, method, path.slice(prefix.length), handler);
+        return;
+      }
+
+      if (prefix.length < child.path.length) {
+        this.splitNode(child, prefix.length);
         this._insert(child, method, path.slice(prefix.length), handler);
         return;
       }
@@ -122,7 +113,40 @@ export class ParentNode extends Node {
     this._createNode(node, method, path, handler);
   }
 
-  _createNode(node: Node, method: Methods, path: string, handler: Handler): void {}
+  _createNode(parent: Node, method: Methods, path: string, handler: Handler): void {
+    if (path.startsWith(":")) {
+      const slashIdx = path.indexOf("/");
+      const label = slashIdx === -1 ? path : path.slice(0, slashIdx);
+      const remaining = slashIdx === -1 ? "" : path.slice(slashIdx);
+
+      const paramNode = new Node(label, NodeTypes.parametric);
+      paramNode.paramName = label.slice(1);
+      parent.children.push(paramNode);
+
+      if (remaining.length) {
+        this._insert(paramNode, method, path, handler);
+      } else {
+        paramNode.handlerStorage?.addHandler(method, handler);
+      }
+    }
+
+    // TODO: implement
+
+    if (path.startsWith("*")) {
+    }
+  }
+
+  private splitNode = (node: Node, splitAt: number) => {
+    const childPath = node.path.slice(splitAt);
+    const newChild = new Node(childPath);
+
+    newChild.handlerStorage = node.handlerStorage;
+    newChild.children = node.children;
+
+    node.path = node.path.slice(0, splitAt);
+    node.handlerStorage = new HandlerStorage();
+    node.children = [newChild];
+  };
 
   private findCommonPrefix(a: string, b: string): string {
     let i = 0;
