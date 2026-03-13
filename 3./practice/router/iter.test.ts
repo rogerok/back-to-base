@@ -1,4 +1,71 @@
-import { Router } from "./index.ts";
+import { Router } from "./undex.iter-2";
+
+describe("Iter 6: параметры", () => {
+  it("извлекает один параметр", async () => {
+    let params: any;
+    const router = new Router().get("/users/:id", (ctx: any) => {
+      params = ctx.req.params;
+    });
+
+    await router.handle({ method: "GET", url: "/users/42" }, {});
+
+    expect(params).toEqual({ id: "42" });
+  });
+
+  it("извлекает несколько параметров", async () => {
+    let params: any;
+    const router = new Router().get("/users/:userId/posts/:postId", (ctx: any) => {
+      params = ctx.req.params;
+    });
+
+    await router.handle({ method: "GET", url: "/users/1/posts/99" }, {});
+
+    expect(params).toEqual({ postId: "99", userId: "1" });
+  });
+
+  it("статический маршрут приоритетнее параметрического", async () => {
+    const called: string[] = [];
+
+    const router = new Router()
+      .get("/users/me", () => {
+        called.push("static");
+      })
+      .get("/users/:id", () => {
+        called.push("param");
+      });
+
+    await router.handle({ method: "GET", url: "/users/me" }, {});
+
+    expect(called).toEqual(["static"]);
+  });
+
+  it("параметр работает вместе с middleware", async () => {
+    const order: string[] = [];
+
+    const router = new Router()
+      .use((_: any, next: any) => {
+        order.push("mw");
+        next();
+      })
+      .get("/items/:id", (ctx: any) => {
+        order.push(`item-${ctx.req.params.id}`);
+      });
+
+    await router.handle({ method: "GET", url: "/items/7" }, {});
+
+    expect(order).toEqual(["mw", "item-7"]);
+  });
+
+  it("не матчит если количество сегментов разное", async () => {
+    const handler = vi.fn();
+    const router = new Router().get("/users/:id", handler);
+
+    await router.handle({ method: "GET", url: "/users" }, {});
+    await router.handle({ method: "GET", url: "/users/1/extra" }, {});
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+});
 
 describe("Iter 5: middleware", () => {
   it("use() возвращает this", () => {

@@ -10,37 +10,6 @@ export const NodeTypes = {
 
 export type NodeTypesValue = ObjectValues<typeof NodeTypes>;
 
-// abstract class Node {
-//   handlerStorage: HandlerStorage | null = null;
-//
-//   protected constructor(
-//     public path: string,
-//     public type: NodeTypesValue,
-//   ) {}
-//
-//   addRoute = (method: Methods, handler: Handler): void => {
-//     if (!this.handlerStorage) {
-//       this.handlerStorage = new HandlerStorage();
-//     }
-//
-//     this.handlerStorage.addHandler(method, handler);
-//   };
-// }
-//
-// export class NodeStatic extends Node {
-//   constructor(path: string) {
-//     super(path, NodeTypes.static);
-//   }
-// }
-//
-// export class NodeParametric extends Node {
-//   paramName: string = "";
-//
-//   constructor(path: string) {
-//     super(path, NodeTypes.parametric);
-//   }
-// }
-
 export class Node {
   children: Node[] = [];
   paramName: string | null = null;
@@ -60,7 +29,7 @@ export class Node {
   };
 }
 
-export class ParentNode extends Node {
+export class RouteTree extends Node {
   root = new Node();
 
   insert(method: Methods, path: string, handler: Handler): void {
