@@ -6,6 +6,7 @@ declare global {
     headers: Record<string, string>;
     method: Methods;
     url: string;
+    query?: Record<string, string>;
   }
 
   interface Response {
