@@ -1,8 +1,10 @@
+import { compose } from "./compose.ts";
 import { Handler, Methods, Middleware } from "./types";
 import { getPathWithoutQuery, getQuery, paramsToObject } from "./utils.ts";
 
 export class Router {
   map = new Map<string, Handler>();
+  middlewares: Middleware[] = [];
 
   handle = async (req: Request, res: Response) => {
     const urlParams = new URLSearchParams(getQuery(req.url));
@@ -14,12 +16,16 @@ export class Router {
   };
 
   addRoute = (method: Methods, path: string, handler: Handler): this => {
-    this.map.set(`${method}:${path}`, handler);
+    const fn = compose([...this.middlewares, handler]);
+
+    this.map.set(`${method}:${path}`, fn);
 
     return this;
   };
 
   use = (middleware: Middleware): this => {
+    this.middlewares.push(middleware);
+
     return this;
   };
 
