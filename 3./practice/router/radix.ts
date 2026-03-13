@@ -61,6 +61,53 @@ export class RadixTree {
     this.addNode(node, method, path, handler);
   };
 
+  search = (method: Methods, path: string): Handler | null => {
+    const withoutLeading = getPathWithoutLeading(path);
+
+    if (!withoutLeading) {
+      return this.root.handlerStorage.getHandler(method);
+    }
+
+    return this._search(this.root, method, withoutLeading);
+  };
+
+  _search = (node: Node, method: Methods, path: string): Handler | null => {
+    for (const child of node.children) {
+      if (path.startsWith(child.path)) {
+        const remaining = path.slice(child.path.length);
+
+        if (!remaining) {
+          return child.handlerStorage.getHandler(method);
+        }
+
+        return this._search(child, method, remaining);
+      }
+    }
+
+    return null;
+  };
+
+  prettyPrint(): string {
+    const lines: string[] = ["root"];
+    this._prettyPrint(this.root.children, "", lines);
+
+    return lines.join("\n");
+  }
+
+  _prettyPrint = (children: Node[], indent: string, lines: string[]) => {
+    children.forEach((child, idx) => {
+      const isLast = idx === children.length - 1;
+      const connector = isLast ? "└── " : "├── ";
+      const methods = child.handlerStorage.getMethods();
+      const suffix = methods.length ? ` [${methods.join(", ")}]` : "";
+
+      lines.push(indent + connector + child.path + suffix);
+      const nextIndent = indent + (isLast ? "  " : "│ ");
+
+      this._prettyPrint(child.children, nextIndent, lines);
+    });
+  };
+
   private splitNode = (child: Node, prefixLength: number) => {
     const path = child.path.slice(prefixLength);
 

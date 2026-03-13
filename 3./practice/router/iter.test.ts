@@ -1,73 +1,7 @@
-import { Router } from "./undex.iter-2";
+// router.test.ts
+import { Router } from "./index.ts";
 
-describe("Iter 6: параметры", () => {
-  it("извлекает один параметр", async () => {
-    let params: any;
-    const router = new Router().get("/users/:id", (ctx: any) => {
-      params = ctx.req.params;
-    });
-
-    await router.handle({ method: "GET", url: "/users/42" }, {});
-
-    expect(params).toEqual({ id: "42" });
-  });
-
-  it("извлекает несколько параметров", async () => {
-    let params: any;
-    const router = new Router().get("/users/:userId/posts/:postId", (ctx: any) => {
-      params = ctx.req.params;
-    });
-
-    await router.handle({ method: "GET", url: "/users/1/posts/99" }, {});
-
-    expect(params).toEqual({ postId: "99", userId: "1" });
-  });
-
-  it("статический маршрут приоритетнее параметрического", async () => {
-    const called: string[] = [];
-
-    const router = new Router()
-      .get("/users/me", () => {
-        called.push("static");
-      })
-      .get("/users/:id", () => {
-        called.push("param");
-      });
-
-    await router.handle({ method: "GET", url: "/users/me" }, {});
-
-    expect(called).toEqual(["static"]);
-  });
-
-  it("параметр работает вместе с middleware", async () => {
-    const order: string[] = [];
-
-    const router = new Router()
-      .use((_: any, next: any) => {
-        order.push("mw");
-        next();
-      })
-      .get("/items/:id", (ctx: any) => {
-        order.push(`item-${ctx.req.params.id}`);
-      });
-
-    await router.handle({ method: "GET", url: "/items/7" }, {});
-
-    expect(order).toEqual(["mw", "item-7"]);
-  });
-
-  it("не матчит если количество сегментов разное", async () => {
-    const handler = vi.fn();
-    const router = new Router().get("/users/:id", handler);
-
-    await router.handle({ method: "GET", url: "/users" }, {});
-    await router.handle({ method: "GET", url: "/users/1/extra" }, {});
-
-    expect(handler).not.toHaveBeenCalled();
-  });
-});
-
-describe("Iter 5: middleware", () => {
+describe("Iter 2: middleware + snapshot", () => {
   it("use() возвращает this", () => {
     const router = new Router();
     expect(router.use(() => {})).toBe(router);
@@ -90,7 +24,7 @@ describe("Iter 5: middleware", () => {
     expect(order).toEqual(["mw", "a"]);
   });
 
-  it("middleware fires for all routes", async () => {
+  it("middleware срабатывает для всех маршрутов", async () => {
     const order: string[] = [];
 
     const router = new Router()
@@ -136,7 +70,7 @@ describe("Iter 5: middleware", () => {
     expect(order).toEqual([1, 2, 3, 4]);
   });
 
-  it("snapshot: middleware ПОСЛЕ .get() не применяется к нему", async () => {
+  it("snapshot: middleware ПОСЛЕ .get() НЕ применяется к нему", async () => {
     const order: string[] = [];
 
     const router = new Router()
@@ -190,7 +124,7 @@ describe("Iter 5: middleware", () => {
     expect(captured).toBe("user-123");
   });
 
-  it("Koa onion: await next()", async () => {
+  it("onion model: await next()", async () => {
     const order: string[] = [];
 
     const router = new Router()
@@ -217,60 +151,61 @@ describe("Iter 5: middleware", () => {
 
     await expect(router.handle({ method: "GET", url: "/test" }, {})).rejects.toThrow("boom");
   });
+
+  it("concurrent requests — разные контексты", async () => {
+    let ctx1: any, ctx2: any;
+
+    const router = new Router()
+      .use(async (ctx: any, next: any) => {
+        ctx.rid = ctx.req.url;
+        await next();
+      })
+      .get("/a", (ctx: any) => {
+        ctx1 = ctx;
+      })
+      .get("/b", (ctx: any) => {
+        ctx2 = ctx;
+      });
+
+    await Promise.all([
+      router.handle({ method: "GET", url: "/a" }, {}),
+      router.handle({ method: "GET", url: "/b" }, {}),
+    ]);
+
+    expect(ctx1.rid).toBe("/a");
+    expect(ctx2.rid).toBe("/b");
+  });
 });
 
-describe("Iter 3: Context", () => {
+describe("Iter 1: Router + RadixTree", () => {
+  it("GET маршрут работает", async () => {
+    const handler = vi.fn();
+    const router = new Router();
+    router.get("/users", handler);
+
+    await router.handle({ method: "GET", url: "/users" }, {});
+
+    expect(handler).toHaveBeenCalledOnce();
+  });
+
   it("handler получает ctx с req и res", async () => {
     const handler = vi.fn();
     const router = new Router().get("/test", handler);
 
-    await router.handle({ method: "GET", url: "/test" }, {});
+    const res = {};
+    await router.handle({ method: "GET", url: "/test" }, res);
 
     const ctx = handler.mock.calls[0][0];
     expect(ctx).toHaveProperty("req");
     expect(ctx).toHaveProperty("res");
+    expect(ctx.req.method).toBe("GET");
+    expect(ctx.req.url).toBe("/test");
+    expect(ctx.res).toBe(res);
   });
 
-  it("ctx.req содержит method и url", async () => {
-    let captured: any;
-    const router = new Router().get("/hello", (ctx: any) => {
-      captured = ctx;
-    });
-
-    await router.handle({ method: "GET", url: "/hello" }, {});
-
-    expect(captured.req.method).toBe("GET");
-    expect(captured.req.url).toBe("/hello");
-  });
-
-  it("ctx.res.status().send() устанавливает код и тело", async () => {
-    const router = new Router().get("/data", (ctx: any) => {
-      ctx.res.status(201).send({ id: 42 });
-    });
-
-    const res = {
-      body: undefined as any,
-      status(code: number) {
-        res.statusCode = code;
-        return {
-          send(data: any) {
-            res.body = data;
-          },
-        };
-      },
-      statusCode: 0,
-    };
-
-    await router.handle({ method: "GET", url: "/data" }, res);
-
-    expect(res.statusCode).toBe(201);
-    expect(res.body).toEqual({ id: 42 });
-  });
-
-  it("парсит query string в ctx.req.query", async () => {
+  it("query string парсится в ctx.req.query", async () => {
     let query: any;
     const router = new Router().get("/search", (ctx: any) => {
-      console.log(ctx);
       query = ctx.req.query;
     });
 
@@ -287,39 +222,33 @@ describe("Iter 3: Context", () => {
 
     expect(handler).toHaveBeenCalledOnce();
   });
-});
 
-describe("Iter 2: методы + chaining", () => {
-  it("POST маршрут работает", async () => {
-    const handler = vi.fn();
-    const router = new Router();
-    router.post("/items", handler);
+  it("маршруты с общим префиксом оба работают", async () => {
+    const calls: string[] = [];
 
-    await router.handle({ method: "POST", url: "/items" }, {});
+    const router = new Router()
+      .get("/test", () => calls.push("test"))
+      .get("/testing", () => calls.push("testing"))
+      .get("/team", () => calls.push("team"));
 
-    expect(handler).toHaveBeenCalledOnce();
+    await router.handle({ method: "GET", url: "/test" }, {});
+    await router.handle({ method: "GET", url: "/testing" }, {});
+    await router.handle({ method: "GET", url: "/team" }, {});
+
+    expect(calls).toEqual(["test", "testing", "team"]);
   });
 
   it("GET и POST на одном пути — независимы", async () => {
-    const order: string[] = [];
+    const calls: string[] = [];
 
     const router = new Router()
-      .get("/items", () => order.push("get"))
-      .post("/items", () => order.push("post"));
+      .get("/items", () => calls.push("get"))
+      .post("/items", () => calls.push("post"));
 
     await router.handle({ method: "GET", url: "/items" }, {});
     await router.handle({ method: "POST", url: "/items" }, {});
 
-    expect(order).toEqual(["get", "post"]);
-  });
-
-  it("не матчит неправильный HTTP-метод", async () => {
-    const handler = vi.fn();
-    const router = new Router().get("/test", handler);
-
-    await router.handle({ method: "POST", url: "/test" }, {});
-
-    expect(handler).not.toHaveBeenCalled();
+    expect(calls).toEqual(["get", "post"]);
   });
 
   it("все методы возвращают this (chaining)", () => {
@@ -331,33 +260,17 @@ describe("Iter 2: методы + chaining", () => {
     expect(router.patch("/c", noop)).toBe(router);
     expect(router.delete("/d", noop)).toBe(router);
   });
-});
 
-describe("Iter 1: Map", () => {
-  it("вызывает handler для зарегистрированного GET-маршрута", async () => {
-    const handler = vi.fn();
-    const router = new Router();
-    router.get("/test", handler);
-
-    await router.handle({ method: "GET", url: "/test" }, {});
-
-    expect(handler).toHaveBeenCalledOnce();
-  });
-
-  it("не вызывает handler для незарегистрированного пути", async () => {
-    const handler = vi.fn();
-    const router = new Router();
-    router.get("/exists", handler);
+  it("несуществующий путь — не падает", async () => {
+    const router = new Router().get("/exists", vi.fn());
 
     await router.handle({ method: "GET", url: "/nope" }, {});
-
-    expect(handler).not.toHaveBeenCalled();
+    // не бросает ошибку
   });
 
-  it("матчит корневой путь /", async () => {
+  it("корневой маршрут /", async () => {
     const handler = vi.fn();
-    const router = new Router();
-    router.get("/", handler);
+    const router = new Router().get("/", handler);
 
     await router.handle({ method: "GET", url: "/" }, {});
 

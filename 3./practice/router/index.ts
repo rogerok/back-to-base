@@ -1,24 +1,43 @@
 import { compose } from "./compose.ts";
+import { RadixTree } from "./radix.ts";
 import { Handler, Methods, Middleware } from "./types";
 import { getPathWithoutQuery, getQuery, paramsToObject } from "./utils.ts";
 
 export class Router {
-  map = new Map<string, Handler>();
   middlewares: Middleware[] = [];
+  private tree = new RadixTree();
 
   handle = async (req: Request, res: Response) => {
-    const urlParams = new URLSearchParams(getQuery(req.url));
-    const entries = urlParams.entries();
+    const path = getPathWithoutQuery(req.url);
 
-    req.query = paramsToObject(entries);
+    const handler = this.tree.search(req.method, path);
 
-    await this.map.get(`${req.method}:${getPathWithoutQuery(req.url)}`)?.({ req, res });
+    if (!handler) {
+      return;
+    }
+
+    req.query = paramsToObject(new URLSearchParams(getQuery(req.url)).entries());
+
+    await handler({ req, res }, async () => {});
   };
+
+  prettyPrint(): string {
+    return this.tree.prettyPrint();
+  }
 
   addRoute = (method: Methods, path: string, handler: Handler): this => {
     const fn = compose([...this.middlewares, handler]);
 
-    this.map.set(`${method}:${path}`, fn);
+    this.tree.insert(method, path, fn);
+
+    return this;
+  };
+
+  nest = async (path: string, cb: (r: Router) => Promise<void>) => {
+    const router = new Router();
+
+    router.middlewares = [...this.middlewares];
+    await cb(router);
 
     return this;
   };

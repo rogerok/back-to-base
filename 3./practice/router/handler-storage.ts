@@ -9,7 +9,7 @@ export class HandlerStorage {
   };
 
   getHandler = (method: Methods): Handler | null => {
-    return this.handlers.get(method) ?? this.unconstrainedHandler;
+    return this.handlers.get(method) || null;
   };
 
   getMethods = (): Methods[] => {
