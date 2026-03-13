@@ -16,3 +16,6 @@ export const getPathWithoutQuery = (path: string): string => {
 export const getQuery = (path: string): string => {
   return path.slice(path.indexOf("?"));
 };
+
+export const getPathWithoutLeading = (path: string): string =>
+  path.startsWith("/") ? path.slice(1) : path;

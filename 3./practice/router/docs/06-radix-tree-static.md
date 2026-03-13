@@ -13,14 +13,14 @@
 ## Оглавление
 
 - [Как пользоваться](#как-пользоваться)
+- [Существующие типы и классы](#существующие-типы-и-классы)
 - [Итерация 1: Node — структура данных](#итерация-1-node--структура-данных)
 - [Итерация 2: Insert — один путь](#итерация-2-insert--один-путь)
 - [Итерация 3: Insert — общий префикс и split](#итерация-3-insert--общий-префикс-и-split)
 - [Итерация 4: Search — точный поиск](#итерация-4-search--точный-поиск)
 - [Итерация 5: Много путей + edge cases](#итерация-5-много-путей--edge-cases)
-- [Итерация 6: HTTP-методы на одном пути](#итерация-6-http-методы-на-одном-пути)
-- [Итерация 7: prettyPrint](#итерация-7-prettyprint)
-- [Итерация 8: Интеграция с Router](#итерация-8-интеграция-с-router)
+- [Итерация 6: prettyPrint](#итерация-6-prettyprint)
+- [Итерация 7: Интеграция с Router](#итерация-7-интеграция-с-router)
 - [Шпаргалка](#шпаргалка)
 
 ---
@@ -34,12 +34,46 @@
 
 ---
 
+## Существующие типы и классы
+
+У тебя уже есть всё необходимое — **используй это с первой итерации**, не дублируй:
+
+**`types/index.ts`** — типы:
+```typescript
+type Methods = "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
+type Next = () => Promise<void> | void;
+type Handler = (ctx: Context, next: Next) => Promise<void> | void;
+type Middleware = Handler;  // одно и то же
+```
+
+**`handler-storage.ts`** — хранилище handler'ов по HTTP-методам:
+```typescript
+class HandlerStorage {
+  handlers: Map<Methods, Handler>;
+  addHandler(method: Methods, handler: Handler): void;
+  getHandler(method: Methods): Handler | null;
+  getMethods(): Methods[];
+  hasHandlers(method: Methods): boolean;
+}
+```
+
+**`types/context.d.ts`** — глобальные интерфейсы `Request`, `Response`, `Context`:
+```typescript
+interface Request { body: unknown; headers: Record<string, string>; method: Methods; url: string; query?: Record<string, string>; }
+interface Response { status<S extends RequestStatusType>(code: S): { return(body: StatusBodyMap[S]): void; }; }
+interface Context { req: Request; res: Response; }
+```
+
+**`compose.ts`** — compose для middleware-цепочек (уже реализован).
+
+---
+
 ## Итерация 1: Node — структура данных
 
 **Идея**: прежде чем строить дерево, нужна нода. Radix tree node хранит:
 - `path` — кусок строки (не обязательно полный сегмент! может быть `"te"`, `"st"`, `"ing"`)
 - `children` — дочерние ноды
-- `handler` — функция-обработчик (или `null` если нода промежуточная)
+- `handlerStorage` — `HandlerStorage` для хранения handler'ов по методам
 
 Вот ключевое отличие от обычного trie: в radix tree нода хранит **подстроку**, а не один символ.
 
@@ -55,7 +89,7 @@
 ```
 
 **Что нужно реализовать**:
-- Класс `Node` с полями `path`, `children`, `handler`
+- Класс `Node` с полями `path`, `children`, `handlerStorage`
 - Класс `RadixTree` с полем `root` (пустая нода)
 
 ```typescript
@@ -68,15 +102,22 @@ describe("Iter 1: Node", () => {
 
     expect(node.path).toBe("test");
     expect(node.children).toEqual([]);
-    expect(node.handler).toBeNull();
   });
 
-  it("Node может хранить handler", () => {
-    const fn = () => {};
+  it("Node имеет HandlerStorage", () => {
     const node = new Node("test");
-    node.handler = fn;
 
-    expect(node.handler).toBe(fn);
+    expect(node.handlerStorage).toBeDefined();
+    expect(node.handlerStorage.getMethods()).toEqual([]);
+  });
+
+  it("Node может хранить handler через HandlerStorage", () => {
+    const fn = vi.fn();
+    const node = new Node("test");
+    node.handlerStorage.addHandler("GET", fn);
+
+    expect(node.handlerStorage.getHandler("GET")).toBe(fn);
+    expect(node.handlerStorage.getHandler("POST")).toBeNull();
   });
 
   it("RadixTree создаётся с пустым корнем", () => {
@@ -93,22 +134,22 @@ describe("Iter 1: Node", () => {
 <summary>Подсказка</summary>
 
 ```typescript
-class Node {
-  path: string;
-  children: Node[] = [];
-  handler: Function | null = null;
+import { HandlerStorage } from "./handler-storage.ts";
 
-  constructor(path: string) {
-    this.path = path;
-  }
+export class Node {
+  children: Node[] = [];
+  handlerStorage = new HandlerStorage();
+
+  constructor(public path: string) {}
 }
 
-class RadixTree {
+export class RadixTree {
   root = new Node("");
 }
 ```
 
-Буквально 10 строк. Не усложняй.
+Буквально 10 строк. `HandlerStorage` на каждой ноде — пустой storage ничего не весит,
+зато не нужно проверять на null.
 </details>
 
 ---
@@ -118,16 +159,19 @@ class RadixTree {
 **Идея**: научить дерево вставлять маршрут. Начнём с самого простого — вставка одного пути
 в пустое дерево. Путь всегда начинается с `/`.
 
+**Сигнатура**: `insert(method: Methods, path: string, handler: Handler)` — с самого начала
+принимает HTTP-метод, потому что `HandlerStorage` работает с методами.
+
 Алгоритм insert:
 1. Убери ведущий `/` (root и так представляет корень)
 2. Если у текущей ноды нет children — создай child с полным оставшимся путём
-3. Запиши handler на конечную ноду
+3. Запиши handler на конечную ноду через `handlerStorage.addHandler(method, handler)`
 
 ```
-insert("/users") →   root("")
-                       └── "users" [handler]
+insert("GET", "/users", h) →   root("")
+                                  └── "users" [GET: h]
 
-insert("/")     →   root("") [handler]
+insert("GET", "/", h)      →   root("") [GET: h]
 ```
 
 **Тесты**:
@@ -138,20 +182,20 @@ describe("Iter 2: insert — один путь", () => {
     const tree = new RadixTree();
     const handler = vi.fn();
 
-    tree.insert("/users", handler);
+    tree.insert("GET", "/users", handler);
 
     expect(tree.root.children).toHaveLength(1);
     expect(tree.root.children[0].path).toBe("users");
-    expect(tree.root.children[0].handler).toBe(handler);
+    expect(tree.root.children[0].handlerStorage.getHandler("GET")).toBe(handler);
   });
 
   it("insert корневого пути / ставит handler на root", () => {
     const tree = new RadixTree();
     const handler = vi.fn();
 
-    tree.insert("/", handler);
+    tree.insert("GET", "/", handler);
 
-    expect(tree.root.handler).toBe(handler);
+    expect(tree.root.handlerStorage.getHandler("GET")).toBe(handler);
     expect(tree.root.children).toHaveLength(0);
   });
 
@@ -159,13 +203,13 @@ describe("Iter 2: insert — один путь", () => {
     const tree = new RadixTree();
     const handler = vi.fn();
 
-    tree.insert("/api/v1/users", handler);
+    tree.insert("GET", "/api/v1/users", handler);
 
     // В radix tree это ОДНА нода с path "api/v1/users"
     // потому что нет других путей, с которыми нужно делить префикс
     expect(tree.root.children).toHaveLength(1);
     expect(tree.root.children[0].path).toBe("api/v1/users");
-    expect(tree.root.children[0].handler).toBe(handler);
+    expect(tree.root.children[0].handlerStorage.getHandler("GET")).toBe(handler);
   });
 
   it("два разных пути без общего префикса — два child'а", () => {
@@ -173,13 +217,26 @@ describe("Iter 2: insert — один путь", () => {
     const a = vi.fn();
     const b = vi.fn();
 
-    tree.insert("/users", a);
-    tree.insert("/items", b);
+    tree.insert("GET", "/users", a);
+    tree.insert("GET", "/items", b);
 
     expect(tree.root.children).toHaveLength(2);
 
     const paths = tree.root.children.map((c) => c.path).sort();
     expect(paths).toEqual(["items", "users"]);
+  });
+
+  it("GET и POST на одном пути — оба сохраняются", () => {
+    const tree = new RadixTree();
+    const get = vi.fn();
+    const post = vi.fn();
+
+    tree.insert("GET", "/users", get);
+    tree.insert("POST", "/users", post);
+
+    expect(tree.root.children).toHaveLength(1);
+    expect(tree.root.children[0].handlerStorage.getHandler("GET")).toBe(get);
+    expect(tree.root.children[0].handlerStorage.getHandler("POST")).toBe(post);
   });
 });
 ```
@@ -188,22 +245,22 @@ describe("Iter 2: insert — один путь", () => {
 <summary>Подсказка</summary>
 
 ```
-insert(path, handler) {
+insert(method, path, handler) {
   const p = path === "/" ? "" : path.slice(1); // убрать ведущий /
 
   if (p === "") {
-    this.root.handler = handler;
+    this.root.handlerStorage.addHandler(method, handler);
     return;
   }
 
   // Пока что без split — просто ищем child с общим префиксом
   // Если не нашли — создаём новый child
-  this._insert(this.root, p, handler);
+  this._insert(this.root, method, p, handler);
 }
 
-_insert(node, path, handler) {
+_insert(node, method, path, handler) {
   // Пройдись по children:
-  //   если child.path === path — повесь handler
+  //   если child.path === path — повесь handler через handlerStorage.addHandler()
   //   если общий префикс — будет в след. итерации
   //   если ничего не нашёл — new Node(path) с handler, push в children
 }
@@ -222,28 +279,28 @@ _insert(node, path, handler) {
 Пример: вставили `/test`, потом `/testing`.
 
 ```
-После insert("/test"):     После insert("/testing"):
-  root("")                    root("")
-    └── "test" [H]              └── "test" [H]
-                                      └── "ing" [H]
+После insert("GET", "/test", h1):   После insert("GET", "/testing", h2):
+  root("")                             root("")
+    └── "test" [GET: h1]                └── "test" [GET: h1]
+                                               └── "ing" [GET: h2]
 ```
 
 Ещё пример: вставили `/testing`, потом `/test`.
 
 ```
-После insert("/testing"):   После insert("/test"):
-  root("")                     root("")
-    └── "testing" [H]            └── "test" [H]
-                                       └── "ing" [H]
+После insert("GET", "/testing", h1):   После insert("GET", "/test", h2):
+  root("")                                root("")
+    └── "testing" [GET: h1]                 └── "test" [GET: h2]
+                                                  └── "ing" [GET: h1]
 ```
 
 А вот `/test` и `/team`:
 
 ```
   root("")
-    └── "te"            ← промежуточная нода, handler = null
-          ├── "st" [H]
-          └── "am" [H]
+    └── "te"            ← промежуточная нода, handlerStorage пустой
+          ├── "st" [GET: h1]
+          └── "am" [GET: h2]
 ```
 
 **Алгоритм split**:
@@ -254,17 +311,21 @@ _insert(node, path, handler) {
 
 **Как разрезать ноду** (это ВАЖНО, нарисуй на бумаге):
 ```
-Было: child = Node("testing", handler=H, children=[...])
+Было: child = Node("testing", handlerStorage={GET: H}, children=[...])
 Общий префикс с "team" = "te" (длина 2)
 
-Шаг 1: создай newChild = Node("sting", handler=H, children=[...от child])
-Шаг 2: обрежь child.path = "te", child.handler = null, child.children = [newChild]
+Шаг 1: создай suffix = Node("sting")
+        suffix.handlerStorage = child.handlerStorage  ← перенеси ВЕСЬ storage!
+        suffix.children = child.children
+Шаг 2: обрежь child.path = "te"
+        child.handlerStorage = new HandlerStorage()   ← чистый, пустой
+        child.children = [suffix]
 Шаг 3: теперь вставь остаток "am" как ещё один child ноды "te"
 
 Стало:
-  "te" (handler=null)
-    ├── "sting" [H]   ← бывший "testing"
-    └── "am" [H]      ← новый
+  "te" (пустой storage)
+    ├── "sting" [GET: H]   ← бывший "testing"
+    └── "am" [GET: H2]     ← новый
 ```
 
 **Тесты**:
@@ -276,20 +337,20 @@ describe("Iter 3: insert — split", () => {
     const a = vi.fn();
     const b = vi.fn();
 
-    tree.insert("/test", a);
-    tree.insert("/testing", b);
+    tree.insert("GET", "/test", a);
+    tree.insert("GET", "/testing", b);
 
-    // root → "test"[a] → "ing"[b]
+    // root → "test"[GET: a] → "ing"[GET: b]
     expect(tree.root.children).toHaveLength(1);
 
     const testNode = tree.root.children[0];
     expect(testNode.path).toBe("test");
-    expect(testNode.handler).toBe(a);
+    expect(testNode.handlerStorage.getHandler("GET")).toBe(a);
     expect(testNode.children).toHaveLength(1);
 
     const ingNode = testNode.children[0];
     expect(ingNode.path).toBe("ing");
-    expect(ingNode.handler).toBe(b);
+    expect(ingNode.handlerStorage.getHandler("GET")).toBe(b);
   });
 
   it("/testing + /test → split (обратный порядок)", () => {
@@ -297,17 +358,17 @@ describe("Iter 3: insert — split", () => {
     const a = vi.fn();
     const b = vi.fn();
 
-    tree.insert("/testing", a);
-    tree.insert("/test", b);
+    tree.insert("GET", "/testing", a);
+    tree.insert("GET", "/test", b);
 
-    // root → "test"[b] → "ing"[a]
+    // root → "test"[GET: b] → "ing"[GET: a]
     const testNode = tree.root.children[0];
     expect(testNode.path).toBe("test");
-    expect(testNode.handler).toBe(b);
+    expect(testNode.handlerStorage.getHandler("GET")).toBe(b);
 
     const ingNode = testNode.children[0];
     expect(ingNode.path).toBe("ing");
-    expect(ingNode.handler).toBe(a);
+    expect(ingNode.handlerStorage.getHandler("GET")).toBe(a);
   });
 
   it("/test + /team → split по общему префиксу 'te'", () => {
@@ -315,13 +376,13 @@ describe("Iter 3: insert — split", () => {
     const a = vi.fn();
     const b = vi.fn();
 
-    tree.insert("/test", a);
-    tree.insert("/team", b);
+    tree.insert("GET", "/test", a);
+    tree.insert("GET", "/team", b);
 
-    // root → "te"(null) → "st"[a], "am"[b]
+    // root → "te"(пустой) → "st"[GET: a], "am"[GET: b]
     const teNode = tree.root.children[0];
     expect(teNode.path).toBe("te");
-    expect(teNode.handler).toBeNull();
+    expect(teNode.handlerStorage.getMethods()).toEqual([]);
     expect(teNode.children).toHaveLength(2);
 
     const paths = teNode.children.map((c) => c.path).sort();
@@ -331,11 +392,11 @@ describe("Iter 3: insert — split", () => {
   it("три пути с общим префиксом", () => {
     const tree = new RadixTree();
 
-    tree.insert("/test", vi.fn());
-    tree.insert("/testing", vi.fn());
-    tree.insert("/team", vi.fn());
+    tree.insert("GET", "/test", vi.fn());
+    tree.insert("GET", "/testing", vi.fn());
+    tree.insert("GET", "/team", vi.fn());
 
-    // root → "te"(null)
+    // root → "te"(пустой)
     //           ├── "st"[H] → "ing"[H]
     //           └── "am"[H]
     const teNode = tree.root.children[0];
@@ -348,27 +409,46 @@ describe("Iter 3: insert — split", () => {
     const a = vi.fn();
     const b = vi.fn();
 
-    tree.insert("/api/users", a);
-    tree.insert("/api/items", b);
+    tree.insert("GET", "/api/users", a);
+    tree.insert("GET", "/api/items", b);
 
-    // root → "api/"(null) → "users"[a], "items"[b]
+    // root → "api/"(пустой) → "users"[GET: a], "items"[GET: b]
     const apiNode = tree.root.children[0];
     expect(apiNode.path).toBe("api/");
-    expect(apiNode.handler).toBeNull();
+    expect(apiNode.handlerStorage.getMethods()).toEqual([]);
     expect(apiNode.children).toHaveLength(2);
   });
 
-  it("вставка одного и того же пути дважды — перезаписывает handler", () => {
+  it("вставка одного пути дважды с одним методом — перезаписывает handler", () => {
     const tree = new RadixTree();
     const first = vi.fn();
     const second = vi.fn();
 
-    tree.insert("/test", first);
-    tree.insert("/test", second);
+    tree.insert("GET", "/test", first);
+    tree.insert("GET", "/test", second);
 
     const testNode = tree.root.children[0];
-    expect(testNode.handler).toBe(second);
+    expect(testNode.handlerStorage.getHandler("GET")).toBe(second);
     expect(testNode.children).toHaveLength(0);
+  });
+
+  it("split не теряет handler'ы разных методов", () => {
+    const tree = new RadixTree();
+    const getTest = vi.fn();
+    const postTest = vi.fn();
+    const getTeam = vi.fn();
+
+    tree.insert("GET", "/test", getTest);
+    tree.insert("POST", "/test", postTest);
+    tree.insert("GET", "/team", getTeam);
+
+    // split "test" → "te" + "st"
+    // "st" должна сохранить и GET, и POST handler'ы
+    const teNode = tree.root.children[0];
+    const stNode = teNode.children.find((c) => c.path === "st")!;
+
+    expect(stNode.handlerStorage.getHandler("GET")).toBe(getTest);
+    expect(stNode.handlerStorage.getHandler("POST")).toBe(postTest);
   });
 
   it("insert не ломает существующие handler'ы", () => {
@@ -377,16 +457,14 @@ describe("Iter 3: insert — split", () => {
     const b = vi.fn();
     const c = vi.fn();
 
-    tree.insert("/users", a);
-    tree.insert("/users/list", b);
-    tree.insert("/users/login", c);
+    tree.insert("GET", "/users", a);
+    tree.insert("GET", "/users/list", b);
+    tree.insert("GET", "/users/login", c);
 
-    // root → "users"[a] → "/"(null) → "list"[b], "login"[c]
-    // или root → "users"[a] → "/l"(null) → "ist"[b], "ogin"[c]
-    // зависит от порядка, но handler'ы должны быть на месте
+    // root → "users"[GET: a] → ... → "list"[GET: b], "login"[GET: c]
     const usersNode = tree.root.children[0];
     expect(usersNode.path).toBe("users");
-    expect(usersNode.handler).toBe(a);
+    expect(usersNode.handlerStorage.getHandler("GET")).toBe(a);
   });
 });
 ```
@@ -416,11 +494,11 @@ function findCommonPrefix(a: string, b: string): string {
 // child.path = "testing", нужно разрезать на позиции 4 ("test" | "ing")
 splitNode(child: Node, splitAt: number) {
   const suffix = new Node(child.path.slice(splitAt));
-  suffix.handler = child.handler;
+  suffix.handlerStorage = child.handlerStorage;  // переносим ВЕСЬ storage
   suffix.children = child.children;
 
   child.path = child.path.slice(0, splitAt);
-  child.handler = null;
+  child.handlerStorage = new HandlerStorage();   // чистый, пустой
   child.children = [suffix];
 }
 ```
@@ -430,7 +508,7 @@ splitNode(child: Node, splitAt: number) {
 <summary>Подсказка: полный алгоритм _insert</summary>
 
 ```
-_insert(node, path, handler):
+_insert(node, method, path, handler):
   for each child in node.children:
     prefix = findCommonPrefix(child.path, path)
 
@@ -438,14 +516,14 @@ _insert(node, path, handler):
       continue  // нет общего — пропускаем
 
     if prefix === child.path AND prefix === path:
-      // точное совпадение — перезаписываем handler
-      child.handler = handler
+      // точное совпадение — добавляем handler в storage
+      child.handlerStorage.addHandler(method, handler)
       return
 
     if prefix === child.path:
       // child.path полностью входит в path
       // идём глубже с остатком
-      _insert(child, path.slice(prefix.length), handler)
+      _insert(child, method, path.slice(prefix.length), handler)
       return
 
     if prefix.length < child.path.length:
@@ -454,15 +532,15 @@ _insert(node, path, handler):
 
       if prefix === path:
         // вставляемый путь = prefix, handler ставим на разрезанную ноду
-        child.handler = handler
+        child.handlerStorage.addHandler(method, handler)
       else:
         // нужно ещё вставить остаток
-        _insert(child, path.slice(prefix.length), handler)
+        _insert(child, method, path.slice(prefix.length), handler)
       return
 
   // ни один child не подошёл — создаём новый
   newNode = new Node(path)
-  newNode.handler = handler
+  newNode.handlerStorage.addHandler(method, handler)
   node.children.push(newNode)
 ```
 
@@ -476,22 +554,24 @@ _insert(node, path, handler):
 **Идея**: теперь нужно уметь искать handler по пути. Алгоритм search зеркалит insert,
 но проще — не нужен split, только спуск по дереву.
 
+**Сигнатура**: `search(method: Methods, path: string): Handler | null`
+
 Алгоритм:
 1. Убери ведущий `/`
 2. Ищи child, чей `path` является **префиксом** текущего пути
 3. Отрежь этот префикс и иди глубже
-4. Когда путь пуст — верни handler текущей ноды (или null)
+4. Когда путь пуст — верни `handlerStorage.getHandler(method)` (или null)
 
 ```
 Дерево:
-  root → "te" → "st"[H1] → "ing"[H2]
-              → "am"[H3]
+  root → "te" → "st"[GET: H1] → "ing"[GET: H2]
+              → "am"[GET: H3]
 
-search("/test"):    "te" match → "st" match → path пуст → H1 ✓
-search("/testing"): "te" match → "st" match → "ing" match → path пуст → H2 ✓
-search("/team"):    "te" match → "am" match → path пуст → H3 ✓
-search("/tea"):     "te" match → нет child "a" → null ✗
-search("/tes"):     "te" match → "st" не match ("s" != "st") → null ✗
+search("GET", "/test"):    "te" match → "st" match → path пуст → H1 ✓
+search("GET", "/testing"): "te" match → "st" match → "ing" match → path пуст → H2 ✓
+search("GET", "/team"):    "te" match → "am" match → path пуст → H3 ✓
+search("GET", "/tea"):     "te" match → нет child "a" → null ✗
+search("POST", "/test"):   "te" match → "st" match → path пуст → storage.getHandler("POST") → null ✗
 ```
 
 **Тесты**:
@@ -502,40 +582,48 @@ describe("Iter 4: search", () => {
     const tree = new RadixTree();
     const handler = vi.fn();
 
-    tree.insert("/users", handler);
-    const result = tree.search("/users");
+    tree.insert("GET", "/users", handler);
+    const result = tree.search("GET", "/users");
 
     expect(result).toBe(handler);
   });
 
   it("возвращает null для несуществующего маршрута", () => {
     const tree = new RadixTree();
-    tree.insert("/users", vi.fn());
+    tree.insert("GET", "/users", vi.fn());
 
-    expect(tree.search("/items")).toBeNull();
+    expect(tree.search("GET", "/items")).toBeNull();
+  });
+
+  it("возвращает null для неправильного метода", () => {
+    const tree = new RadixTree();
+    tree.insert("GET", "/users", vi.fn());
+
+    expect(tree.search("POST", "/users")).toBeNull();
+    expect(tree.search("DELETE", "/users")).toBeNull();
   });
 
   it("находит корневой маршрут /", () => {
     const tree = new RadixTree();
     const handler = vi.fn();
 
-    tree.insert("/", handler);
+    tree.insert("GET", "/", handler);
 
-    expect(tree.search("/")).toBe(handler);
+    expect(tree.search("GET", "/")).toBe(handler);
   });
 
   it("не матчит частичный путь (суффикс отсутствует)", () => {
     const tree = new RadixTree();
-    tree.insert("/testing", vi.fn());
+    tree.insert("GET", "/testing", vi.fn());
 
-    expect(tree.search("/test")).toBeNull();
+    expect(tree.search("GET", "/test")).toBeNull();
   });
 
   it("не матчит слишком длинный путь", () => {
     const tree = new RadixTree();
-    tree.insert("/test", vi.fn());
+    tree.insert("GET", "/test", vi.fn());
 
-    expect(tree.search("/testing")).toBeNull();
+    expect(tree.search("GET", "/testing")).toBeNull();
   });
 
   it("находит маршруты после split", () => {
@@ -543,29 +631,57 @@ describe("Iter 4: search", () => {
     const a = vi.fn();
     const b = vi.fn();
 
-    tree.insert("/test", a);
-    tree.insert("/team", b);
+    tree.insert("GET", "/test", a);
+    tree.insert("GET", "/team", b);
 
-    expect(tree.search("/test")).toBe(a);
-    expect(tree.search("/team")).toBe(b);
+    expect(tree.search("GET", "/test")).toBe(a);
+    expect(tree.search("GET", "/team")).toBe(b);
   });
 
   it("не матчит промежуточную ноду без handler'а", () => {
     const tree = new RadixTree();
-    tree.insert("/test", vi.fn());
-    tree.insert("/team", vi.fn());
+    tree.insert("GET", "/test", vi.fn());
+    tree.insert("GET", "/team", vi.fn());
 
-    // "te" — промежуточная нода, handler = null
-    expect(tree.search("/te")).toBeNull();
+    // "te" — промежуточная нода, handlerStorage пустой
+    expect(tree.search("GET", "/te")).toBeNull();
+  });
+
+  it("GET и POST на одном пути — независимы", () => {
+    const tree = new RadixTree();
+    const get = vi.fn();
+    const post = vi.fn();
+
+    tree.insert("GET", "/users", get);
+    tree.insert("POST", "/users", post);
+
+    expect(tree.search("GET", "/users")).toBe(get);
+    expect(tree.search("POST", "/users")).toBe(post);
+    expect(tree.search("DELETE", "/users")).toBeNull();
+  });
+
+  it("все 5 методов на одном пути", () => {
+    const tree = new RadixTree();
+    const methods = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+    const handlers: Record<string, ReturnType<typeof vi.fn>> = {};
+
+    for (const m of methods) {
+      handlers[m] = vi.fn();
+      tree.insert(m, "/resource", handlers[m]);
+    }
+
+    for (const m of methods) {
+      expect(tree.search(m, "/resource")).toBe(handlers[m]);
+    }
   });
 
   it("находит длинные пути", () => {
     const tree = new RadixTree();
     const handler = vi.fn();
 
-    tree.insert("/api/v1/users/list", handler);
+    tree.insert("GET", "/api/v1/users/list", handler);
 
-    expect(tree.search("/api/v1/users/list")).toBe(handler);
+    expect(tree.search("GET", "/api/v1/users/list")).toBe(handler);
   });
 
   it("находит все маршруты в дереве из нескольких путей", () => {
@@ -577,18 +693,18 @@ describe("Iter 4: search", () => {
       itemsList: vi.fn(),
     };
 
-    tree.insert("/users", handlers.users);
-    tree.insert("/users/me", handlers.usersMe);
-    tree.insert("/items", handlers.items);
-    tree.insert("/items/list", handlers.itemsList);
+    tree.insert("GET", "/users", handlers.users);
+    tree.insert("GET", "/users/me", handlers.usersMe);
+    tree.insert("GET", "/items", handlers.items);
+    tree.insert("GET", "/items/list", handlers.itemsList);
 
-    expect(tree.search("/users")).toBe(handlers.users);
-    expect(tree.search("/users/me")).toBe(handlers.usersMe);
-    expect(tree.search("/items")).toBe(handlers.items);
-    expect(tree.search("/items/list")).toBe(handlers.itemsList);
+    expect(tree.search("GET", "/users")).toBe(handlers.users);
+    expect(tree.search("GET", "/users/me")).toBe(handlers.usersMe);
+    expect(tree.search("GET", "/items")).toBe(handlers.items);
+    expect(tree.search("GET", "/items/list")).toBe(handlers.itemsList);
 
-    expect(tree.search("/users/other")).toBeNull();
-    expect(tree.search("/unknown")).toBeNull();
+    expect(tree.search("GET", "/users/other")).toBeNull();
+    expect(tree.search("GET", "/unknown")).toBeNull();
   });
 });
 ```
@@ -597,23 +713,23 @@ describe("Iter 4: search", () => {
 <summary>Подсказка</summary>
 
 ```
-search(fullPath):
+search(method, fullPath):
   path = fullPath === "/" ? "" : fullPath.slice(1)
 
   if path === "":
-    return this.root.handler
+    return this.root.handlerStorage.getHandler(method)
 
-  return this._search(this.root, path)
+  return this._search(this.root, method, path)
 
-_search(node, path):
+_search(node, method, path):
   for each child in node.children:
     if path.startsWith(child.path):
       remaining = path.slice(child.path.length)
 
       if remaining === "":
-        return child.handler  // может быть null!
+        return child.handlerStorage.getHandler(method)  // может быть null!
 
-      return _search(child, remaining)
+      return _search(child, method, remaining)
 
   return null   // ни один child не подошёл
 ```
@@ -635,31 +751,31 @@ describe("Iter 5: edge cases", () => {
     const a = vi.fn();
     const b = vi.fn();
 
-    tree.insert("/users", a);
-    tree.insert("/users/", b);
+    tree.insert("GET", "/users", a);
+    tree.insert("GET", "/users/", b);
 
-    expect(tree.search("/users")).toBe(a);
-    expect(tree.search("/users/")).toBe(b);
+    expect(tree.search("GET", "/users")).toBe(a);
+    expect(tree.search("GET", "/users/")).toBe(b);
   });
 
-  it("длинная цепочка split'ов", () => {
+  it("длинная цепочка split'ов (Wikipedia example)", () => {
     const tree = new RadixTree();
     const handlers: Record<string, ReturnType<typeof vi.fn>> = {};
 
     const paths = ["/romane", "/romanus", "/romulus", "/rubens", "/ruber", "/rubicon", "/rubicundus"];
     for (const p of paths) {
       handlers[p] = vi.fn();
-      tree.insert(p, handlers[p]);
+      tree.insert("GET", p, handlers[p]);
     }
 
     for (const p of paths) {
-      expect(tree.search(p)).toBe(handlers[p]);
+      expect(tree.search("GET", p)).toBe(handlers[p]);
     }
 
     // Не должны матчить частичные
-    expect(tree.search("/rom")).toBeNull();
-    expect(tree.search("/rub")).toBeNull();
-    expect(tree.search("/roman")).toBeNull();
+    expect(tree.search("GET", "/rom")).toBeNull();
+    expect(tree.search("GET", "/rub")).toBeNull();
+    expect(tree.search("GET", "/roman")).toBeNull();
   });
 
   it("путь — подстрока другого пути (с /)", () => {
@@ -668,14 +784,14 @@ describe("Iter 5: edge cases", () => {
     const b = vi.fn();
     const c = vi.fn();
 
-    tree.insert("/a", a);
-    tree.insert("/a/b", b);
-    tree.insert("/a/b/c", c);
+    tree.insert("GET", "/a", a);
+    tree.insert("GET", "/a/b", b);
+    tree.insert("GET", "/a/b/c", c);
 
-    expect(tree.search("/a")).toBe(a);
-    expect(tree.search("/a/b")).toBe(b);
-    expect(tree.search("/a/b/c")).toBe(c);
-    expect(tree.search("/a/b/c/d")).toBeNull();
+    expect(tree.search("GET", "/a")).toBe(a);
+    expect(tree.search("GET", "/a/b")).toBe(b);
+    expect(tree.search("GET", "/a/b/c")).toBe(c);
+    expect(tree.search("GET", "/a/b/c/d")).toBeNull();
   });
 
   it("общие префиксы с / на разных позициях", () => {
@@ -684,15 +800,31 @@ describe("Iter 5: edge cases", () => {
     const h2 = vi.fn();
     const h3 = vi.fn();
 
-    tree.insert("/api/users", h1);
-    tree.insert("/api/items", h2);
-    tree.insert("/app/config", h3);
+    tree.insert("GET", "/api/users", h1);
+    tree.insert("GET", "/api/items", h2);
+    tree.insert("GET", "/app/config", h3);
 
-    expect(tree.search("/api/users")).toBe(h1);
-    expect(tree.search("/api/items")).toBe(h2);
-    expect(tree.search("/app/config")).toBe(h3);
-    expect(tree.search("/api")).toBeNull();
-    expect(tree.search("/app")).toBeNull();
+    expect(tree.search("GET", "/api/users")).toBe(h1);
+    expect(tree.search("GET", "/api/items")).toBe(h2);
+    expect(tree.search("GET", "/app/config")).toBe(h3);
+    expect(tree.search("GET", "/api")).toBeNull();
+    expect(tree.search("GET", "/app")).toBeNull();
+  });
+
+  it("разные HTTP-методы на путях с общим префиксом после split", () => {
+    const tree = new RadixTree();
+    const getUsers = vi.fn();
+    const postUsers = vi.fn();
+    const getItems = vi.fn();
+
+    tree.insert("GET", "/api/users", getUsers);
+    tree.insert("POST", "/api/users", postUsers);
+    tree.insert("GET", "/api/items", getItems);
+
+    expect(tree.search("GET", "/api/users")).toBe(getUsers);
+    expect(tree.search("POST", "/api/users")).toBe(postUsers);
+    expect(tree.search("GET", "/api/items")).toBe(getItems);
+    expect(tree.search("POST", "/api/items")).toBeNull();
   });
 
   it("20 маршрутов — все находятся", () => {
@@ -710,11 +842,11 @@ describe("Iter 5: edge cases", () => {
 
     for (const p of paths) {
       handlers[p] = vi.fn();
-      tree.insert(p, handlers[p]);
+      tree.insert("GET", p, handlers[p]);
     }
 
     for (const p of paths) {
-      const found = tree.search(p);
+      const found = tree.search("GET", p);
       expect(found).toBe(handlers[p]);
     }
   });
@@ -724,12 +856,12 @@ describe("Iter 5: edge cases", () => {
     const a = vi.fn();
     const b = vi.fn();
 
-    tree.insert("/test", a);
-    expect(tree.search("/test")).toBe(a);
+    tree.insert("GET", "/test", a);
+    expect(tree.search("GET", "/test")).toBe(a);
 
-    tree.insert("/testing", b);
-    expect(tree.search("/test")).toBe(a);
-    expect(tree.search("/testing")).toBe(b);
+    tree.insert("GET", "/testing", b);
+    expect(tree.search("GET", "/test")).toBe(a);
+    expect(tree.search("GET", "/testing")).toBe(b);
   });
 });
 ```
@@ -762,116 +894,11 @@ root
 
 ---
 
-## Итерация 6: HTTP-методы на одном пути
-
-**Идея**: на одном пути могут висеть разные handler'ы для разных HTTP-методов.
-Вместо одного `handler` на ноде нужна `Map<string, Function>`.
-
-**Изменения в Node**:
-- `handler: Function | null` → `handlers: Map<string, Function>`
-- `insert(path, handler)` → `insert(method, path, handler)`
-- `search(path)` → `search(method, path)` возвращает `handler | null`
-
-```typescript
-describe("Iter 6: HTTP-методы", () => {
-  it("GET и POST на одном пути", () => {
-    const tree = new RadixTree();
-    const get = vi.fn();
-    const post = vi.fn();
-
-    tree.insert("GET", "/users", get);
-    tree.insert("POST", "/users", post);
-
-    expect(tree.search("GET", "/users")).toBe(get);
-    expect(tree.search("POST", "/users")).toBe(post);
-  });
-
-  it("неизвестный метод — null", () => {
-    const tree = new RadixTree();
-    tree.insert("GET", "/users", vi.fn());
-
-    expect(tree.search("POST", "/users")).toBeNull();
-    expect(tree.search("DELETE", "/users")).toBeNull();
-  });
-
-  it("разные методы на разных путях с общим префиксом", () => {
-    const tree = new RadixTree();
-    const getUsers = vi.fn();
-    const postUsers = vi.fn();
-    const getItems = vi.fn();
-
-    tree.insert("GET", "/api/users", getUsers);
-    tree.insert("POST", "/api/users", postUsers);
-    tree.insert("GET", "/api/items", getItems);
-
-    expect(tree.search("GET", "/api/users")).toBe(getUsers);
-    expect(tree.search("POST", "/api/users")).toBe(postUsers);
-    expect(tree.search("GET", "/api/items")).toBe(getItems);
-    expect(tree.search("POST", "/api/items")).toBeNull();
-  });
-
-  it("все 5 методов на одном пути", () => {
-    const tree = new RadixTree();
-    const methods = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
-    const handlers: Record<string, ReturnType<typeof vi.fn>> = {};
-
-    for (const m of methods) {
-      handlers[m] = vi.fn();
-      tree.insert(m, "/resource", handlers[m]);
-    }
-
-    for (const m of methods) {
-      expect(tree.search(m, "/resource")).toBe(handlers[m]);
-    }
-  });
-
-  it("split не теряет handler'ы разных методов", () => {
-    const tree = new RadixTree();
-    const getTest = vi.fn();
-    const postTest = vi.fn();
-    const getTeam = vi.fn();
-
-    tree.insert("GET", "/test", getTest);
-    tree.insert("POST", "/test", postTest);
-    tree.insert("GET", "/team", getTeam);
-
-    // split произошёл → "te" → "st", "am"
-    // handler'ы обоих методов на "st" должны сохраниться
-    expect(tree.search("GET", "/test")).toBe(getTest);
-    expect(tree.search("POST", "/test")).toBe(postTest);
-    expect(tree.search("GET", "/team")).toBe(getTeam);
-  });
-});
-```
-
-<details>
-<summary>Подсказка</summary>
-
-Замени в Node:
-```typescript
-// Было:
-handler: Function | null = null;
-
-// Стало:
-handlers: Map<string, Function> = new Map();
-```
-
-В `insert` вместо `node.handler = handler` пиши `node.handlers.set(method, handler)`.
-В `search` вместо `return node.handler` пиши `return node.handlers.get(method) ?? null`.
-
-В `splitNode` перенеси **всю Map** на suffix ноду:
-```typescript
-suffix.handlers = child.handlers;
-child.handlers = new Map();
-```
-</details>
-
----
-
-## Итерация 7: prettyPrint
+## Итерация 6: prettyPrint
 
 **Идея**: для отладки нужно уметь визуализировать дерево. `prettyPrint()` должен
-показывать структуру нод с отступами.
+показывать структуру нод с отступами. Используй `handlerStorage.getMethods()`
+чтобы показать какие HTTP-методы зарегистрированы на ноде.
 
 Ожидаемый формат:
 ```
@@ -886,7 +913,7 @@ root
 ```
 
 ```typescript
-describe("Iter 7: prettyPrint", () => {
+describe("Iter 6: prettyPrint", () => {
   it("пустое дерево", () => {
     const tree = new RadixTree();
     const output = tree.prettyPrint();
@@ -917,7 +944,7 @@ describe("Iter 7: prettyPrint", () => {
     expect(output).toContain("am");
   });
 
-  it("показывает методы у нод с handler'ами", () => {
+  it("показывает методы у нод с handler'ами (через HandlerStorage)", () => {
     const tree = new RadixTree();
     tree.insert("GET", "/users", vi.fn());
     tree.insert("POST", "/users", vi.fn());
@@ -958,7 +985,7 @@ _print(children: Node[], indent: string, lines: string[]): void {
   children.forEach((child, i) => {
     const isLast = i === children.length - 1;
     const connector = isLast ? "└── " : "├── ";
-    const methods = Array.from(child.handlers.keys());
+    const methods = child.handlerStorage.getMethods();
     const suffix = methods.length ? ` (${methods.join(", ")})` : "";
 
     lines.push(indent + connector + child.path + suffix);
@@ -972,17 +999,20 @@ _print(children: Node[], indent: string, lines: string[]): void {
 
 ---
 
-## Итерация 8: Интеграция с Router
+## Итерация 7: Интеграция с Router
 
 **Идея**: заменить `Map<string, Handler>` в Router на `RadixTree`. Теперь Router
 использует дерево для хранения и поиска маршрутов. Compose и middleware — без изменений.
 
+Типы `Handler`, `Middleware`, `Methods` — из `types/index.ts`.
+`compose` — из `compose.ts`.
+
 **Что нужно сделать**:
-1. `addRoute()` → `this.tree.insert(method, path, composedFn)`
-2. `handle()` → `this.tree.search(method, path)` → вызвать найденный handler
+1. `addRoute(method: Methods, path: string, handler: Handler)` → snapshot middleware, compose, `this.tree.insert(method, path, composedFn)`
+2. `handle(req: Request, res: Response)` → `this.tree.search(req.method, path)` → создать ctx → вызвать handler
 
 ```typescript
-describe("Iter 8: Router + RadixTree", () => {
+describe("Iter 7: Router + RadixTree", () => {
   // import { Router } from "./radix.ts" (или из нового файла)
 
   it("простой маршрут работает через дерево", async () => {
@@ -1107,25 +1137,29 @@ describe("Iter 8: Router + RadixTree", () => {
 Изменения в Router минимальны:
 
 ```typescript
+import { compose } from "./compose.ts";
+import { Handler, Methods, Middleware } from "./types";
+import { RadixTree } from "./radix.ts";
+import { getPathWithoutQuery, getQuery, paramsToObject } from "./utils.ts";
+
 class Router {
   private tree = new RadixTree();
   private middlewares: Middleware[] = [];
 
-  addRoute(method: string, path: string, handler: Handler): this {
+  addRoute(method: Methods, path: string, handler: Handler): this {
     const fn = compose([...this.middlewares, handler]);
     this.tree.insert(method, path, fn);
     return this;
   }
 
   async handle(req: any, res: any) {
-    const [path, queryStr] = req.url.split("?");
+    const path = getPathWithoutQuery(req.url);
     const handler = this.tree.search(req.method, path);
 
     if (!handler) return;
 
-    const query = queryStr
-      ? Object.fromEntries(new URLSearchParams(queryStr))
-      : {};
+    const queryStr = getQuery(req.url);
+    const query = paramsToObject(new URLSearchParams(queryStr).entries());
     const ctx = { req: { ...req, url: path, query }, res };
 
     await handler(ctx, async () => {});
@@ -1139,7 +1173,8 @@ class Router {
 }
 ```
 
-Вся сложность — в RadixTree. Router просто делегирует.
+Обрати внимание: используем `getPathWithoutQuery` и `getQuery` из `utils.ts` —
+они у тебя уже есть. Вся сложность — в RadixTree. Router просто делегирует.
 </details>
 
 ---
@@ -1148,16 +1183,15 @@ class Router {
 
 | # | Что делаем | Строк кода | Сложность |
 |---|---|---|---|
-| 1 | Node — структура данных | ~10 | Легко |
-| 2 | Insert — один путь | ~20 | Легко |
+| 1 | Node + HandlerStorage | ~10 | Легко |
+| 2 | Insert — один путь | ~25 | Легко |
 | 3 | Insert — split (общий префикс) | ~40 | **Сложно** |
 | 4 | Search — поиск по дереву | ~20 | Средне |
 | 5 | Edge cases (только тесты) | 0 | Средне |
-| 6 | HTTP-методы | ~15 | Легко |
-| 7 | prettyPrint | ~20 | Легко |
-| 8 | Интеграция с Router | ~15 | Средне |
+| 6 | prettyPrint | ~20 | Легко |
+| 7 | Интеграция с Router | ~15 | Средне |
 
-**Итого**: ~140 строк на полное radix tree со статикой.
+**Итого**: ~130 строк на полное radix tree со статикой.
 
 ### Что дальше
 
@@ -1167,4 +1201,4 @@ class Router {
 - При search: сначала проверяй static children (приоритет!), потом parametric
 - Параметрическая нода "съедает" всё до следующего `/`
 
-Но это — **потом**. Сначала пройди все 8 итераций здесь.
+Но это — **потом**. Сначала пройди все 7 итераций здесь.
