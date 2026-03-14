@@ -35,7 +35,7 @@ describe("Router", () => {
 
   describe("chainable API", () => {
     it("all registration methods return the same router instance", () => {
-      const noop = (_ctx: Context2, next: Next) => next();
+      const noop = (_ctx: Context, next: Next) => next();
       const router = new Router();
 
       expect(router.get("/a", noop)).toBe(router);
@@ -47,7 +47,7 @@ describe("Router", () => {
     });
 
     it("supports fluent method chaining", () => {
-      const noop = (_ctx: Context2, next: Next) => next();
+      const noop = (_ctx: Context, next: Next) => next();
 
       const router = new Router()
         .use(noop)
@@ -68,7 +68,7 @@ describe("Router", () => {
       ["PATCH", "patch"],
       ["DELETE", "delete"],
     ] as const)("matches %s request via .%s()", async (method, routerMethod) => {
-      const handler = vi.fn((ctx: Context2) => {
+      const handler = vi.fn((ctx: Context) => {
         ctx.res.status(200).send({ ok: true });
       });
 
@@ -140,15 +140,15 @@ describe("Router", () => {
 
       await router.handle(createReq("GET", "/test"), createRes());
 
-      const ctx = handler.mock.calls[0][0] as Context2;
+      const ctx = handler.mock.calls[0][0] as Context;
       expect(ctx).toHaveProperty("req");
       expect(ctx).toHaveProperty("res");
     });
 
     it("ctx.req reflects the incoming request", async () => {
-      let captured: Context2 | undefined;
+      let captured: Context | undefined;
 
-      const router = new Router().get("/hello", (ctx: Context2) => {
+      const router = new Router().get("/hello", (ctx: Context) => {
         captured = ctx;
       });
 
@@ -159,7 +159,7 @@ describe("Router", () => {
     });
 
     it("ctx.res.status().send() sets response code and body", async () => {
-      const router = new Router().get("/data", (ctx: Context2) => {
+      const router = new Router().get("/data", (ctx: Context) => {
         ctx.res.status(201).send({ id: 42 });
       });
 
@@ -182,7 +182,7 @@ describe("Router", () => {
     it("parses query string from URL into ctx.req.query", async () => {
       let query: Record<string, string> = {};
 
-      const router = new Router().get("/search", (ctx: Context2) => {
+      const router = new Router().get("/search", (ctx: Context) => {
         query = ctx.req.query;
       });
 
@@ -199,7 +199,7 @@ describe("Router", () => {
       const order: string[] = [];
 
       const router = new Router()
-        .use((_: Context2, next: Next) => {
+        .use((_: Context, next: Next) => {
           order.push("mw");
           next();
         })
@@ -220,15 +220,15 @@ describe("Router", () => {
       const order: number[] = [];
 
       const router = new Router()
-        .use((_: Context2, next: Next) => {
+        .use((_: Context, next: Next) => {
           order.push(1);
           next();
         })
-        .use((_: Context2, next: Next) => {
+        .use((_: Context, next: Next) => {
           order.push(2);
           next();
         })
-        .use((_: Context2, next: Next) => {
+        .use((_: Context, next: Next) => {
           order.push(3);
           next();
         })
@@ -248,7 +248,7 @@ describe("Router", () => {
         .get("/first", () => {
           order.push("first");
         })
-        .use((_: Context2, next: Next) => {
+        .use((_: Context, next: Next) => {
           order.push("mw");
           next();
         })
@@ -284,12 +284,12 @@ describe("Router", () => {
       let captured: unknown;
 
       const router = new Router()
-        .use((ctx: Context2, next: Next) => {
-          (ctx as { userId: string } & Context2).userId = "user-123";
+        .use((ctx: Context, next: Next) => {
+          (ctx as { userId: string } & Context).userId = "user-123";
           next();
         })
-        .get("/me", (ctx: Context2) => {
-          captured = (ctx as { userId: string } & Context2).userId;
+        .get("/me", (ctx: Context) => {
+          captured = (ctx as { userId: string } & Context).userId;
         });
 
       await router.handle(createReq("GET", "/me"), createRes());
@@ -301,7 +301,7 @@ describe("Router", () => {
       const order: string[] = [];
 
       const router = new Router()
-        .use(async (_: Context2, next: Next) => {
+        .use(async (_: Context, next: Next) => {
           order.push("before");
           await next();
           order.push("after");
@@ -319,12 +319,12 @@ describe("Router", () => {
       const order: string[] = [];
 
       const router = new Router()
-        .use(async (_: Context2, next: Next) => {
+        .use(async (_: Context, next: Next) => {
           order.push("mw1-in");
           await next();
           order.push("mw1-out");
         })
-        .use(async (_: Context2, next: Next) => {
+        .use(async (_: Context, next: Next) => {
           order.push("mw2-in");
           await next();
           order.push("mw2-out");
@@ -366,7 +366,7 @@ describe("Router", () => {
       const order: string[] = [];
 
       const router = new Router()
-        .use((_: Context2, next: Next) => {
+        .use((_: Context, next: Next) => {
           order.push("parent");
           next();
         })
@@ -387,7 +387,7 @@ describe("Router", () => {
       const router = new Router()
         .nest("/api", (r) =>
           r
-            .use((_: Context2, next: Next) => {
+            .use((_: Context, next: Next) => {
               order.push("nested-mw");
               next();
             })
@@ -420,15 +420,15 @@ describe("Router", () => {
     it("middleware scope is preserved across nesting levels", async () => {
       const order: string[] = [];
 
-      const logger = (_: Context2, next: Next) => {
+      const logger = (_: Context, next: Next) => {
         order.push("log");
         next();
       };
-      const auth = (_: Context2, next: Next) => {
+      const auth = (_: Context, next: Next) => {
         order.push("auth");
         next();
       };
-      const db = (_: Context2, next: Next) => {
+      const db = (_: Context, next: Next) => {
         order.push("db");
         next();
       };
@@ -471,19 +471,19 @@ describe("Router", () => {
       const order: string[] = [];
 
       const router = new Router()
-        .use((_: Context2, next: Next) => {
+        .use((_: Context, next: Next) => {
           order.push("root");
           next();
         })
         .nest("/a", (r) =>
           r
-            .use((_: Context2, next: Next) => {
+            .use((_: Context, next: Next) => {
               order.push("a");
               next();
             })
             .nest("/b", (r) =>
               r
-                .use((_: Context2, next: Next) => {
+                .use((_: Context, next: Next) => {
                   order.push("b");
                   next();
                 })
@@ -505,7 +505,7 @@ describe("Router", () => {
     it("extracts single route parameter", async () => {
       let params: Record<string, string> = {};
 
-      const router = new Router().get("/users/:id", (ctx: Context2) => {
+      const router = new Router().get("/users/:id", (ctx: Context) => {
         params = ctx.req.params;
       });
 
@@ -517,7 +517,7 @@ describe("Router", () => {
     it("extracts multiple route parameters", async () => {
       let params: Record<string, string> = {};
 
-      const router = new Router().get("/users/:userId/posts/:postId", (ctx: Context2) => {
+      const router = new Router().get("/users/:userId/posts/:postId", (ctx: Context) => {
         params = ctx.req.params;
       });
 
@@ -572,7 +572,7 @@ describe("Router", () => {
       let params: Record<string, string> = {};
 
       const router = new Router().nest("/api", (r) =>
-        r.get("/items/:itemId", (ctx: Context2) => {
+        r.get("/items/:itemId", (ctx: Context) => {
           params = ctx.req.params;
         }),
       );
@@ -586,7 +586,7 @@ describe("Router", () => {
       let params: Record<string, string> = {};
 
       const router = new Router().nest("/users", (r) =>
-        r.get("/:id", (ctx: Context2) => {
+        r.get("/:id", (ctx: Context) => {
           params = ctx.req.params;
         }),
       );
@@ -601,7 +601,7 @@ describe("Router", () => {
 
   describe("schema validation", () => {
     it("allows valid request body", async () => {
-      const handler = vi.fn((ctx: Context2) => {
+      const handler = vi.fn((ctx: Context) => {
         ctx.res.status(201).send({ ok: true });
       });
 
@@ -724,7 +724,7 @@ describe("Router", () => {
             response: { 200: z.object({ id: z.number(), name: z.string() }) },
           },
         },
-        (ctx: Context2) => {
+        (ctx: Context) => {
           ctx.res.status(200).send({ id: "bad" }); // id should be number
         },
       );
@@ -741,7 +741,7 @@ describe("Router", () => {
             response: { 200: z.object({ id: z.number(), name: z.string() }) },
           },
         },
-        (ctx: Context2) => {
+        (ctx: Context) => {
           ctx.res.status(200).send({ id: 1, name: "Alice" });
         },
       );
@@ -761,7 +761,7 @@ describe("Router", () => {
       const order: string[] = [];
 
       const router = new Router()
-        .use((_: Context2, next: Next) => {
+        .use((_: Context, next: Next) => {
           order.push("mw");
           next();
         })
@@ -778,7 +778,7 @@ describe("Router", () => {
       const order: string[] = [];
 
       const router = new Router()
-        .use(async (_: Context2, next: Next) => {
+        .use(async (_: Context, next: Next) => {
           order.push("mw-in");
           await next();
           order.push("mw-out");
@@ -796,7 +796,7 @@ describe("Router", () => {
       const handler = vi.fn();
 
       const router = new Router()
-        .use((ctx: Context2) => {
+        .use((ctx: Context) => {
           ctx.res.status(401).send({ error: "unauthorized" });
           // no next() — handler never runs
         })
@@ -833,7 +833,7 @@ describe("Router", () => {
     });
 
     it("middleware without any routes does not throw", async () => {
-      const mw = vi.fn((_: Context2, next: Next) => next());
+      const mw = vi.fn((_: Context, next: Next) => next());
       const router = new Router().use(mw);
 
       await router.handle(createReq("GET", "/"), createRes());
@@ -856,18 +856,18 @@ describe("Router", () => {
     });
 
     it("concurrent requests do not share context", async () => {
-      let ctx1: Context2 | undefined;
-      let ctx2: Context2 | undefined;
+      let ctx1: Context | undefined;
+      let ctx2: Context | undefined;
 
       const router = new Router()
-        .use(async (ctx: Context2, next: Next) => {
-          (ctx as { rid: string } & Context2).rid = ctx.req.url;
+        .use(async (ctx: Context, next: Next) => {
+          (ctx as { rid: string } & Context).rid = ctx.req.url;
           await next();
         })
-        .get("/a", (ctx: Context2) => {
+        .get("/a", (ctx: Context) => {
           ctx1 = ctx;
         })
-        .get("/b", (ctx: Context2) => {
+        .get("/b", (ctx: Context) => {
           ctx2 = ctx;
         });
 
@@ -876,8 +876,8 @@ describe("Router", () => {
         router.handle(createReq("GET", "/b"), createRes()),
       ]);
 
-      expect((ctx1).rid).toBe("/a");
-      expect((ctx2).rid).toBe("/b");
+      expect(ctx1.rid).toBe("/a");
+      expect(ctx2.rid).toBe("/b");
     });
   });
 });

@@ -9,10 +9,16 @@ export class Node {
   constructor(public path: string) {}
 }
 
+type CollectedRoute = {
+  handler: Handler;
+  method: Methods;
+  path: string;
+};
+
 export class RadixTree {
   root = new Node("");
 
-  insert = (method: Methods, path: string, handler: Handler) => {
+  insert = (method: Methods, path: string, handler: Handler): void => {
     const withoutLeading = getPathWithoutLeading(path);
 
     if (!withoutLeading) {
@@ -23,7 +29,31 @@ export class RadixTree {
     this._insert(this.root, method, withoutLeading, handler);
   };
 
-  _insert = (node: Node, method: Methods, path: string, handler: Handler) => {
+  collectRoute = (): CollectedRoute[] => {
+    const routes: CollectedRoute[] = [];
+    this._collectRoute(this.root, "", routes);
+    return routes;
+  };
+
+  _collectRoute = (node: Node, path: string, result: CollectedRoute[]): void => {
+    for (const method of node.handlerStorage.getMethods()) {
+      const handler = node.handlerStorage.getHandler(method);
+
+      if (handler) {
+        result.push({
+          handler,
+          method,
+          path: "/" + path,
+        });
+      }
+    }
+
+    for (const child of node.children) {
+      this._collectRoute(child, path + child.path, result);
+    }
+  };
+
+  _insert = (node: Node, method: Methods, path: string, handler: Handler): void => {
     if (!path) {
       node.handlerStorage.addHandler(method, handler);
       return;
@@ -94,7 +124,7 @@ export class RadixTree {
     return lines.join("\n");
   }
 
-  _prettyPrint = (children: Node[], indent: string, lines: string[]) => {
+  _prettyPrint = (children: Node[], indent: string, lines: string[]): void => {
     children.forEach((child, idx) => {
       const isLast = idx === children.length - 1;
       const connector = isLast ? "└── " : "├── ";
@@ -108,7 +138,7 @@ export class RadixTree {
     });
   };
 
-  private splitNode = (child: Node, prefixLength: number) => {
+  private splitNode = (child: Node, prefixLength: number): void => {
     const path = child.path.slice(prefixLength);
 
     const suffix = new Node(path);
@@ -126,7 +156,7 @@ export class RadixTree {
     child.children = [suffix];
   };
 
-  private addNode = (node: Node, method: Methods, path: string, handler: Handler) => {
+  private addNode = (node: Node, method: Methods, path: string, handler: Handler): Node => {
     const newNode = new Node(path);
     newNode.handlerStorage.addHandler(method, handler);
     node.children.push(newNode);

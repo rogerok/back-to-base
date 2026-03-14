@@ -7,7 +7,7 @@ export class Router {
   middlewares: Middleware[] = [];
   private tree = new RadixTree();
 
-  handle = async (req: Request, res: Response) => {
+  handle = async (req: Request, res: Response): Promise<void> => {
     const path = getPathWithoutQuery(req.url);
 
     const handler = this.tree.search(req.method, path);
@@ -33,11 +33,18 @@ export class Router {
     return this;
   };
 
-  nest = async (path: string, cb: (r: Router) => Promise<void>) => {
+  nest = (path: string, cb: (r: Router) => void): this => {
     const router = new Router();
 
     router.middlewares = [...this.middlewares];
-    await cb(router);
+
+    cb(router);
+
+    const routes = router.tree.collectRoute();
+
+    for (const route of routes) {
+      this.tree.insert(route.method, path + route.path, route.handler);
+    }
 
     return this;
   };
@@ -52,15 +59,15 @@ export class Router {
     return this.addRoute("GET", path, handler);
   };
 
-  post = (path: string, handler: Handler) => {
+  post = (path: string, handler: Handler): this => {
     return this.addRoute("POST", path, handler);
   };
 
-  delete = (path: string, handler: Handler) => {
+  delete = (path: string, handler: Handler): this => {
     return this.addRoute("DELETE", path, handler);
   };
 
-  patch = (path: string, handler: Handler) => {
+  patch = (path: string, handler: Handler): this => {
     return this.addRoute("PATCH", path, handler);
   };
 }
