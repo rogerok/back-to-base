@@ -25,3 +25,4 @@ export const replace = curry((what: RegExp | string, replacement: string, s: str
 export const map = curry(<T, U>(f: (x: T) => U, xs: T[]): U[] => xs.map(f));
 
 export const intercalate = curry((str: string, xs: string[]): string => xs.join(str));
+dsdsывsdssыф;

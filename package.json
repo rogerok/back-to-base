@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "pixi.js": "6.2.2",
-    "rambda": "^11.1.0",
+    "remeda": "^2.33.7",
     "ts-pattern": "^5.9.0",
     "zod": "^4.3.6"
   }
