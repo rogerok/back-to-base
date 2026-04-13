@@ -65,8 +65,7 @@ const Settings = t.type({
 type Settings = t.TypeOf<typeof Settings>;
 
 const loadSettings = () => {
-  const f = pipe(readFileSync("./settings.json", "utf8"), J.parse);
-  const d = E.chain(f);
+  const f = pipe(readFileSync("./settings.json", "utf8"), J.parse, E.chain);
 };
 
 loadSettings();
