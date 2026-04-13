@@ -23,11 +23,11 @@ import { Maybe } from './containers.js';
 
 // safeProp: безопасный доступ к свойству объекта
 // Возвращает Maybe — значит для навигации нужен chain
-export const safeProp = (key) => (obj) => Maybe.of(obj == null ? null : obj[key]);
+const safeProp = (key) => (obj) => Maybe.of(obj == null ? null : obj[key]);
 
 // safeHead: безопасный доступ к первому элементу массива
 // Возвращает Maybe — тоже требует chain
-export const safeHead = (arr) =>
+const safeHead = (arr) =>
   Array.isArray(arr) && arr.length > 0 ? Maybe.of(arr[0]) : Maybe.of(null);
 
 // ---------------------------------------------------------------------------
@@ -46,7 +46,7 @@ export const safeHead = (arr) =>
 //   getCity(null)                               → 'Город не указан'
 // ---------------------------------------------------------------------------
 
-export const getCity = (user) => {
+const getCity = (user) => {
   // TODO: Maybe.of(user).chain(...).chain(...).getOrElse(...)
   //
   // Подсказка: safeProp('address') возвращает функцию,
@@ -77,7 +77,7 @@ export const getCity = (user) => {
 //     → 'Email не найден'
 // ---------------------------------------------------------------------------
 
-export const getFirstFriendEmail = (user) => {
+const getFirstFriendEmail = (user) => {
   // TODO: Maybe.of(user)
   //         .chain(safeProp('friends'))   — достаём массив friends
   //         .chain(safeHead)              — берём первого
@@ -104,7 +104,7 @@ export const getFirstFriendEmail = (user) => {
 // Используй .getOrElse(null).
 // ---------------------------------------------------------------------------
 
-export const getConfigValue = (config, ...keys) => {
+const getConfigValue = (config, ...keys) => {
   // TODO:
   // Начни с Maybe.of(config), затем для каждого ключа из keys
   // вызывай .chain(safeProp(key)).
@@ -132,11 +132,114 @@ export const getConfigValue = (config, ...keys) => {
 //   getAge({})                → 0
 // ---------------------------------------------------------------------------
 
-export const getAgeWrong = (user) => {
+const getAgeWrong = (user) => {
   // TODO: Maybe.of(user).map(safeProp('age'))
   // — это возвращает Maybe(Maybe(age)), что неудобно
 };
 
-export const getAge = (user) => {
+const getAge = (user) => {
   // TODO: правильная версия через chain
 };
+
+// ---------------------------------------------------------------------------
+// Тесты — не изменяй эту секцию
+// ---------------------------------------------------------------------------
+
+let passed = 0;
+let failed = 0;
+
+function test(description, actual, expected) {
+  if (actual === expected) {
+    console.log(`  ПРОЙДЕН: ${description}`);
+    passed++;
+  } else {
+    console.error(`  ПРОВАЛЕН: ${description}`);
+    console.error(`    Ожидалось: ${JSON.stringify(expected)}`);
+    console.error(`    Получено:  ${JSON.stringify(actual)}`);
+    failed++;
+  }
+}
+
+console.log('\n--- Упражнение 2: chain для безопасной навигации ---\n');
+
+// 2.1 getCity
+console.log('2.1 getCity:');
+test('адрес и город есть',            getCity({ address: { city: 'Москва' } }),          'Москва');
+test('есть address, нет city',        getCity({ address: {} }),                            'Город не указан');
+test('нет address',                   getCity({ name: 'Иван' }),                           'Город не указан');
+test('null на входе',                 getCity(null),                                       'Город не указан');
+test('address равен null',            getCity({ address: null }),                          'Город не указан');
+test('city равен undefined',          getCity({ address: { city: undefined } }),           'Город не указан');
+
+// 2.2 getFirstFriendEmail
+console.log('\n2.2 getFirstFriendEmail:');
+test(
+  'первый друг с email',
+  getFirstFriendEmail({ friends: [{ email: 'alice@mail.com' }] }),
+  'alice@mail.com'
+);
+test(
+  'первый друг без email',
+  getFirstFriendEmail({ friends: [{ name: 'Боб' }] }),
+  'Email не найден'
+);
+test(
+  'массив друзей пуст',
+  getFirstFriendEmail({ friends: [] }),
+  'Email не найден'
+);
+test(
+  'нет поля friends',
+  getFirstFriendEmail({}),
+  'Email не найден'
+);
+test(
+  'несколько друзей — берём первого',
+  getFirstFriendEmail({
+    friends: [{ email: 'first@mail.com' }, { email: 'second@mail.com' }],
+  }),
+  'first@mail.com'
+);
+
+// 2.3 getConfigValue
+console.log('\n2.3 getConfigValue:');
+const cfg = { db: { host: { name: 'localhost' }, port: 5432 }, debug: true };
+test('путь из трёх ключей',           getConfigValue(cfg, 'db', 'host', 'name'), 'localhost');
+test('путь из двух ключей',           getConfigValue(cfg, 'db', 'port'),         5432);
+test('булево значение',               getConfigValue(cfg, 'debug'),              true);
+test('несуществующий ключ',           getConfigValue(cfg, 'api'),                null);
+test('несуществующий вложенный ключ', getConfigValue(cfg, 'db', 'password'),     null);
+test('null на входе',                 getConfigValue(null, 'db'),                null);
+test('пустой путь ключей',            getConfigValue(cfg),                       cfg);
+
+// 2.4 map vs chain
+console.log('\n2.4 map vs chain:');
+{
+  const wrongResult = getAgeWrong({ age: 25 });
+  // getAgeWrong должен вернуть Maybe(Maybe(25)) — вложенный Maybe
+  const isNestedMaybe =
+    wrongResult instanceof Maybe &&
+    wrongResult._value instanceof Maybe &&
+    wrongResult._value._value === 25;
+  if (isNestedMaybe) {
+    console.log('  ПРОЙДЕН: getAgeWrong возвращает Maybe(Maybe(25)) — вложенность!');
+    passed++;
+  } else {
+    console.error('  ПРОВАЛЕН: getAgeWrong должен вернуть Maybe(Maybe(25))');
+    console.error(`    Получено: ${JSON.stringify(wrongResult)}`);
+    failed++;
+  }
+}
+test('getAge({ age: 25 }) → 25',  getAge({ age: 25 }), 25);
+test('getAge({ age: 0 })  → 0',   getAge({ age: 0 }),  0);
+test('getAge({})          → 0',   getAge({}),          0);
+test('getAge(null)        → 0',   getAge(null),        0);
+
+// Итог
+console.log(`\nРезультат: ${passed} пройдено, ${failed} провалено`);
+if (failed === 0) {
+  console.log('Все тесты пройдены!');
+} else {
+  console.log('Есть ошибки — исправь TODO и запусти снова.');
+  process.exit(1);
+}

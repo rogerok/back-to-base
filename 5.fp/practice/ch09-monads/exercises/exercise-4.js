@@ -27,7 +27,7 @@ import { IO } from './containers.js';
 // ---------------------------------------------------------------------------
 
 // Симулированное хранилище (аналог localStorage)
-export const createStorage = (initial = {}) => {
+const createStorage = (initial = {}) => {
   const store = { ...initial };
   return {
     getItem: (key) => store[key] ?? null,
@@ -37,7 +37,7 @@ export const createStorage = (initial = {}) => {
 };
 
 // Симулированный DOM (аналог document.getElementById)
-export const createDOM = (initial = {}) => {
+const createDOM = (initial = {}) => {
   const elements = {};
   for (const [id, value] of Object.entries(initial)) {
     elements[id] = { value: String(value) };
@@ -78,11 +78,11 @@ export const createDOM = (initial = {}) => {
 //   io.unsafePerformIO(); // → 'Иван' (вот теперь выполнено)
 // ---------------------------------------------------------------------------
 
-export const readStorage = (storage, key) => {
+const readStorage = (storage, key) => {
   // TODO: new IO(() => storage.getItem(key))
 };
 
-export const writeDOM = (dom, id, value) => {
+const writeDOM = (dom, id, value) => {
   // TODO: new IO(() => { dom.setValue(id, value); return value; })
 };
 
@@ -101,7 +101,7 @@ export const writeDOM = (dom, id, value) => {
 //   → 'ПРИВЕТ'
 // ---------------------------------------------------------------------------
 
-export const toUpperCaseIO = (io) => {
+const toUpperCaseIO = (io) => {
   // TODO: io.map(str => str.toUpperCase())
 };
 
@@ -131,7 +131,7 @@ export const toUpperCaseIO = (io) => {
 //   // Теперь dom.getValue('result') === '10'
 // ---------------------------------------------------------------------------
 
-export const copyAndTransform = (storage, dom, fromKey, toId, transform) => {
+const copyAndTransform = (storage, dom, fromKey, toId, transform) => {
   // TODO:
   // readStorage(storage, fromKey)     — IO('5')
   //   .map(transform)                 — IO('10')  (transform возвращает строку)
@@ -170,6 +170,122 @@ export const copyAndTransform = (storage, dom, fromKey, toId, transform) => {
 //   )
 // ---------------------------------------------------------------------------
 
-export const buildGreeting = (storage, dom) => {
+const buildGreeting = (storage, dom) => {
   // TODO
 };
+
+// ---------------------------------------------------------------------------
+// Тесты — не изменяй эту секцию
+// ---------------------------------------------------------------------------
+
+let passed = 0;
+let failed = 0;
+
+function test(description, actual, expected) {
+  if (actual === expected) {
+    console.log(`  ПРОЙДЕН: ${description}`);
+    passed++;
+  } else {
+    console.error(`  ПРОВАЛЕН: ${description}`);
+    console.error(`    Ожидалось: ${JSON.stringify(expected)}`);
+    console.error(`    Получено:  ${JSON.stringify(actual)}`);
+    failed++;
+  }
+}
+
+console.log('\n--- Упражнение 4: IO chain — последовательность эффектов ---\n');
+
+// 4.1 readStorage и writeDOM
+console.log('4.1 readStorage и writeDOM:');
+{
+  const storage = createStorage({ name: 'Иван', count: '42' });
+  const dom = createDOM();
+
+  const ioName = readStorage(storage, 'name');
+  test('readStorage возвращает IO (не выполняет сразу)', typeof ioName?.unsafePerformIO, 'function');
+  test('readStorage("name") → "Иван"', ioName?.unsafePerformIO?.(), 'Иван');
+  test('readStorage("count") → "42"', readStorage(storage, 'count')?.unsafePerformIO?.(), '42');
+  test('readStorage несуществующего ключа → null', readStorage(storage, 'missing')?.unsafePerformIO?.(), null);
+
+  const ioWrite = writeDOM(dom, 'title', 'Привет');
+  test('writeDOM возвращает IO (не пишет сразу)', dom.getValue('title'), null);
+  const writeResult = ioWrite?.unsafePerformIO?.();
+  test('writeDOM.unsafePerformIO() возвращает записанное значение', writeResult, 'Привет');
+  test('writeDOM записывает в DOM', dom.getValue('title'), 'Привет');
+}
+
+// 4.2 toUpperCaseIO
+console.log('\n4.2 toUpperCaseIO:');
+{
+  const storage = createStorage({ greeting: 'привет' });
+  const result = toUpperCaseIO(readStorage(storage, 'greeting'))?.unsafePerformIO?.();
+  test('читает и переводит в верхний регистр', result, 'ПРИВЕТ');
+
+  const storage2 = createStorage({ word: 'hello world' });
+  test('несколько слов', toUpperCaseIO(readStorage(storage2, 'word'))?.unsafePerformIO?.(), 'HELLO WORLD');
+}
+
+// 4.3 copyAndTransform
+console.log('\n4.3 copyAndTransform:');
+{
+  const storage = createStorage({ count: '5', price: '100' });
+  const dom = createDOM();
+
+  const ioDouble = copyAndTransform(
+    storage, dom, 'count', 'result', (n) => String(Number(n) * 2)
+  );
+  test('copyAndTransform возвращает IO', typeof ioDouble?.unsafePerformIO, 'function');
+  test('DOM не изменён до запуска', dom.getValue('result'), null);
+
+  ioDouble?.unsafePerformIO?.();
+  test('DOM изменён после запуска', dom.getValue('result'), '10');
+
+  // Второй вызов — трансформация цены
+  copyAndTransform(
+    storage, dom, 'price', 'discounted', (p) => String(Number(p) * 0.9)
+  )?.unsafePerformIO?.();
+  test('скидка 10% → 90', dom.getValue('discounted'), '90');
+
+  // Несуществующий ключ
+  copyAndTransform(
+    storage, dom, 'missing', 'output', (v) => `[${v}]`
+  )?.unsafePerformIO?.();
+  test('несуществующий ключ → "[null]"', dom.getValue('output'), '[null]');
+}
+
+// 4.4 buildGreeting
+console.log('\n4.4 buildGreeting:');
+{
+  const storage = createStorage({ firstName: 'Иван', lastName: 'Петров' });
+  const dom = createDOM();
+
+  const io = buildGreeting(storage, dom);
+  test('buildGreeting возвращает IO', typeof io?.unsafePerformIO, 'function');
+  test('приветствие не записано до запуска', dom.getValue('greeting'), null);
+
+  io?.unsafePerformIO?.();
+  test(
+    'приветствие записано после запуска',
+    dom.getValue('greeting'),
+    'Добро пожаловать, Иван Петров!'
+  );
+
+  // Другие данные
+  const storage2 = createStorage({ firstName: 'Мария', lastName: 'Иванова' });
+  const dom2 = createDOM();
+  buildGreeting(storage2, dom2)?.unsafePerformIO?.();
+  test(
+    'приветствие для другого пользователя',
+    dom2.getValue('greeting'),
+    'Добро пожаловать, Мария Иванова!'
+  );
+}
+
+// Итог
+console.log(`\nРезультат: ${passed} пройдено, ${failed} провалено`);
+if (failed === 0) {
+  console.log('Все тесты пройдены!');
+} else {
+  console.log('Есть ошибки — исправь TODO и запусти снова.');
+  process.exit(1);
+}

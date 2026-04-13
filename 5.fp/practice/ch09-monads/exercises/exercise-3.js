@@ -39,7 +39,7 @@ import { Right, Left } from './containers.js';
 //   validateUsername({ username: 'alice!' })     → Left('Имя пользователя должно содержать только буквы и цифры')
 // ---------------------------------------------------------------------------
 
-export const validateUsername = (data) => {
+const validateUsername = (data) => {
   // TODO: проверки по порядку, в конце Right(data)
   //
   // Подсказка для регулярного выражения:
@@ -62,7 +62,7 @@ export const validateUsername = (data) => {
 //   validatePassword({ password: '12345678' })  → Left('Пароль должен содержать хотя бы одну букву')
 // ---------------------------------------------------------------------------
 
-export const validatePassword = (data) => {
+const validatePassword = (data) => {
   // TODO
   //
   // Подсказки:
@@ -88,7 +88,7 @@ export const validatePassword = (data) => {
 //   validateEmail({ email: 'user@nodot' })      → Left('Email должен содержать точку после @')
 // ---------------------------------------------------------------------------
 
-export const validateEmail = (data) => {
+const validateEmail = (data) => {
   // TODO
 };
 
@@ -110,7 +110,7 @@ export const validateEmail = (data) => {
 // Порядок проверок: username → password → email.
 // ---------------------------------------------------------------------------
 
-export const registerUser = (data) => {
+const registerUser = (data) => {
   // TODO: Right.of(data)
   //         .chain(validateUsername)
   //         .chain(validatePassword)
@@ -134,7 +134,7 @@ export const registerUser = (data) => {
 //   firstErrorWins({ username: 'alice', password: 'secret42', email: 'a@b.ru' }) → 'ok'
 // ---------------------------------------------------------------------------
 
-export const firstErrorWins = (data) => {
+const firstErrorWins = (data) => {
   // Подсказка: в fold для Left получаешь сообщение об ошибке.
   // Определи, какое сообщение соответствует какому полю,
   // и верни имя поля.
@@ -147,3 +147,124 @@ export const firstErrorWins = (data) => {
   //   if (msg.includes('пользователя')) return 'username';
   // TODO
 };
+
+// ---------------------------------------------------------------------------
+// Тесты — не изменяй эту секцию
+// ---------------------------------------------------------------------------
+
+let passed = 0;
+let failed = 0;
+
+function test(description, actual, expected) {
+  if (actual === expected) {
+    console.log(`  ПРОЙДЕН: ${description}`);
+    passed++;
+  } else {
+    console.error(`  ПРОВАЛЕН: ${description}`);
+    console.error(`    Ожидалось: ${JSON.stringify(expected)}`);
+    console.error(`    Получено:  ${JSON.stringify(actual)}`);
+    failed++;
+  }
+}
+
+function foldEither(either) {
+  return either?.fold(
+    (err) => `LEFT:${err}`,
+    () => 'RIGHT'
+  );
+}
+
+console.log('\n--- Упражнение 3: Either chain — валидационный пайплайн ---\n');
+
+// 3.1 validateUsername
+console.log('3.1 validateUsername:');
+test('корректный username',    foldEither(validateUsername({ username: 'alice42' })), 'RIGHT');
+test('однобуквенный',          foldEither(validateUsername({ username: 'ab' })),
+  'LEFT:Имя пользователя должно содержать от 3 до 20 символов');
+test('слишком длинный',        foldEither(validateUsername({ username: 'a'.repeat(21) })),
+  'LEFT:Имя пользователя должно содержать от 3 до 20 символов');
+test('спецсимволы',            foldEither(validateUsername({ username: 'user!' })),
+  'LEFT:Имя пользователя должно содержать только буквы и цифры');
+test('не строка',              foldEither(validateUsername({ username: 42 })),
+  'LEFT:Имя пользователя должно быть строкой');
+test('русское имя',            foldEither(validateUsername({ username: 'Алиса' })), 'RIGHT');
+test('ровно 3 символа — ok',   foldEither(validateUsername({ username: 'ali' })), 'RIGHT');
+test('ровно 20 символов — ok', foldEither(validateUsername({ username: 'a'.repeat(20) })), 'RIGHT');
+
+// 3.2 validatePassword
+console.log('\n3.2 validatePassword:');
+test('корректный пароль',      foldEither(validatePassword({ password: 'secret42' })), 'RIGHT');
+test('слишком короткий',       foldEither(validatePassword({ password: 'sec1' })),
+  'LEFT:Пароль должен содержать минимум 8 символов');
+test('нет цифры',              foldEither(validatePassword({ password: 'secretsecret' })),
+  'LEFT:Пароль должен содержать хотя бы одну цифру');
+test('нет буквы',              foldEither(validatePassword({ password: '12345678' })),
+  'LEFT:Пароль должен содержать хотя бы одну букву');
+test('не строка',              foldEither(validatePassword({ password: 12345678 })),
+  'LEFT:Пароль должен быть строкой');
+test('ровно 8 символов — ok',  foldEither(validatePassword({ password: 'secret4!' })), 'RIGHT');
+
+// 3.3 validateEmail
+console.log('\n3.3 validateEmail:');
+test('корректный email',       foldEither(validateEmail({ email: 'user@mail.ru' })), 'RIGHT');
+test('нет @',                  foldEither(validateEmail({ email: 'usermail.ru' })),
+  'LEFT:Email должен содержать @');
+test('нет точки после @',      foldEither(validateEmail({ email: 'user@nodot' })),
+  'LEFT:Email должен содержать точку после @');
+test('не строка',              foldEither(validateEmail({ email: 42 })),
+  'LEFT:Email должен быть строкой');
+
+// 3.4 registerUser
+console.log('\n3.4 registerUser:');
+{
+  const valid = registerUser({ username: 'alice', password: 'secret42', email: 'alice@mail.ru' });
+  test('все данные верны → success',           valid?.success, true);
+  test('все данные верны → user есть',         !!valid?.user,  true);
+
+  const badUsername = registerUser({ username: 'al', password: 'secret42', email: 'alice@mail.ru' });
+  test('плохой username → success false',      badUsername?.success, false);
+  test('плохой username → ошибка про username',
+    badUsername?.error?.includes('пользователя'), true);
+
+  const badPassword = registerUser({ username: 'alice', password: 'short', email: 'alice@mail.ru' });
+  test('плохой пароль → success false',        badPassword?.success, false);
+  test('плохой пароль → ошибка про пароль',
+    badPassword?.error?.includes('Пароль'), true);
+
+  const badEmail = registerUser({ username: 'alice', password: 'secret42', email: 'invalid' });
+  test('плохой email → success false',         badEmail?.success, false);
+  test('плохой email → ошибка про email',
+    badEmail?.error?.includes('Email'), true);
+}
+
+// 3.5 firstErrorWins
+console.log('\n3.5 firstErrorWins — первая ошибка останавливает цепочку:');
+test(
+  'ошибка на username — останавливается на нём',
+  firstErrorWins({ username: 'a', password: 'nope11', email: 'bad' }),
+  'username'
+);
+test(
+  'username ok, ошибка на password',
+  firstErrorWins({ username: 'alice', password: 'nope', email: 'bad' }),
+  'password'
+);
+test(
+  'username и password ok, ошибка на email',
+  firstErrorWins({ username: 'alice', password: 'secret42', email: 'bad' }),
+  'email'
+);
+test(
+  'все ok → ok',
+  firstErrorWins({ username: 'alice', password: 'secret42', email: 'a@b.ru' }),
+  'ok'
+);
+
+// Итог
+console.log(`\nРезультат: ${passed} пройдено, ${failed} провалено`);
+if (failed === 0) {
+  console.log('Все тесты пройдены!');
+} else {
+  console.log('Есть ошибки — исправь TODO и запусти снова.');
+  process.exit(1);
+}

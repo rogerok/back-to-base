@@ -31,7 +31,7 @@ import { Maybe, Right, Left, IO } from './containers.js';
 // ---------------------------------------------------------------------------
 
 // Симулированное хранилище
-export const createStorage = (initial = {}) => {
+const createStorage = (initial = {}) => {
   const store = { ...initial };
   return {
     getItem: (key) => store[key] ?? null,
@@ -40,7 +40,7 @@ export const createStorage = (initial = {}) => {
 };
 
 // Симулированный DOM
-export const createDOM = () => {
+const createDOM = () => {
   const state = {};
   return {
     getAttribute: (id, attr) => state[`${id}:${attr}`] ?? null,
@@ -49,7 +49,7 @@ export const createDOM = () => {
 };
 
 // Безопасный доступ к свойству объекта — возвращает Maybe
-export const safeProp = (key) => (obj) => Maybe.of(obj == null ? null : obj[key]);
+const safeProp = (key) => (obj) => Maybe.of(obj == null ? null : obj[key]);
 
 // ---------------------------------------------------------------------------
 // Задание 5.1 — tryCatch
@@ -68,7 +68,7 @@ export const safeProp = (key) => (obj) => Maybe.of(obj == null ? null : obj[key]
 //   tryCatch(() => { throw new Error('oops') }) → Left(Error: oops)
 // ---------------------------------------------------------------------------
 
-export const tryCatch = (fn) => {
+const tryCatch = (fn) => {
   // TODO: try { return Right.of(fn()); } catch (e) { return Left.of(e); }
 };
 
@@ -90,7 +90,7 @@ export const tryCatch = (fn) => {
 //   parseConfig('not json')         → Left('Некорректный JSON: ...')
 // ---------------------------------------------------------------------------
 
-export const parseConfig = (str) => {
+const parseConfig = (str) => {
   // TODO:
   // if (str === null) return Left.of('Конфиг не найден');
   // return tryCatch(() => JSON.parse(str)).fold(
@@ -121,7 +121,7 @@ export const parseConfig = (str) => {
 //   extractTheme({})                              → Left('Тема не указана в конфиге')
 // ---------------------------------------------------------------------------
 
-export const extractTheme = (config) => {
+const extractTheme = (config) => {
   // TODO
 };
 
@@ -142,9 +142,9 @@ export const extractTheme = (config) => {
 //   validateTheme('')        → Left('Недопустимая тема: "". Допустимы: light, dark, system')
 // ---------------------------------------------------------------------------
 
-export const ALLOWED_THEMES = ['light', 'dark', 'system'];
+const ALLOWED_THEMES = ['light', 'dark', 'system'];
 
-export const validateTheme = (theme) => {
+const validateTheme = (theme) => {
   // TODO
 };
 
@@ -163,7 +163,7 @@ export const validateTheme = (theme) => {
 //   dom.getAttribute('body', 'data-theme') === 'dark'
 // ---------------------------------------------------------------------------
 
-export const applyTheme = (dom, theme) => {
+const applyTheme = (dom, theme) => {
   // TODO: new IO(() => { dom.setAttribute('body', 'data-theme', theme); return theme; })
 };
 
@@ -210,7 +210,7 @@ export const applyTheme = (dom, theme) => {
 //   // dom.getAttribute('body', 'data-theme') === 'dark'
 // ---------------------------------------------------------------------------
 
-export const loadAndApplyTheme = (storage, dom) => {
+const loadAndApplyTheme = (storage, dom) => {
   // TODO:
   // new IO(() => storage.getItem('config'))
   //   .chain(configStr => {
@@ -223,3 +223,149 @@ export const loadAndApplyTheme = (storage, dom) => {
   //       );
   //   });
 };
+
+// ---------------------------------------------------------------------------
+// Тесты — не изменяй эту секцию
+// ---------------------------------------------------------------------------
+
+let passed = 0;
+let failed = 0;
+
+function test(description, actual, expected) {
+  if (actual === expected) {
+    console.log(`  ПРОЙДЕН: ${description}`);
+    passed++;
+  } else {
+    console.error(`  ПРОВАЛЕН: ${description}`);
+    console.error(`    Ожидалось: ${JSON.stringify(expected)}`);
+    console.error(`    Получено:  ${JSON.stringify(actual)}`);
+    failed++;
+  }
+}
+
+function foldEither(either) {
+  return either?.fold?.(
+    (err) => `LEFT:${typeof err === 'object' ? err.message : err}`,
+    (val) => `RIGHT:${typeof val === 'object' ? JSON.stringify(val) : val}`
+  );
+}
+
+console.log('\n--- Упражнение 5: Реальный пайплайн — IO + Either + Maybe ---\n');
+
+// 5.1 tryCatch
+console.log('5.1 tryCatch:');
+test('успешный вызов → Right',   foldEither(tryCatch(() => JSON.parse('{"a":1}'))), 'RIGHT:{"a":1}');
+test('исключение → Left',        foldEither(tryCatch(() => JSON.parse('bad')))?.startsWith('LEFT:'), true);
+test('ошибка с throw → Left',    foldEither(tryCatch(() => { throw new Error('oops'); })), 'LEFT:oops');
+test('вычисление без ошибки',    foldEither(tryCatch(() => 2 + 2)), 'RIGHT:4');
+
+// 5.2 parseConfig
+console.log('\n5.2 parseConfig:');
+test('корректный JSON → Right',
+  foldEither(parseConfig('{"theme":"dark"}')),
+  'RIGHT:{"theme":"dark"}'
+);
+test('null → Left конфиг не найден',
+  foldEither(parseConfig(null)),
+  'LEFT:Конфиг не найден'
+);
+test('некорректный JSON → Left начинается с "Некорректный JSON"',
+  foldEither(parseConfig('bad json'))?.startsWith('LEFT:Некорректный JSON'),
+  true
+);
+
+// 5.3 extractTheme
+console.log('\n5.3 extractTheme:');
+test('тема есть → Right',        foldEither(extractTheme({ theme: 'dark', lang: 'ru' })), 'RIGHT:dark');
+test('темы нет → Left',          foldEither(extractTheme({ lang: 'ru' })), 'LEFT:Тема не указана в конфиге');
+test('пустой объект → Left',     foldEither(extractTheme({})), 'LEFT:Тема не указана в конфиге');
+
+// 5.4 validateTheme
+console.log('\n5.4 validateTheme:');
+test('dark → Right',             foldEither(validateTheme('dark')),   'RIGHT:dark');
+test('light → Right',            foldEither(validateTheme('light')),  'RIGHT:light');
+test('system → Right',           foldEither(validateTheme('system')), 'RIGHT:system');
+test('неизвестная тема → Left',
+  foldEither(validateTheme('purple'))?.startsWith('LEFT:Недопустимая тема'),
+  true
+);
+test('пустая строка → Left',
+  foldEither(validateTheme(''))?.startsWith('LEFT:Недопустимая тема'),
+  true
+);
+
+// 5.5 applyTheme
+console.log('\n5.5 applyTheme:');
+{
+  const dom = createDOM();
+  test('applyTheme возвращает IO', typeof applyTheme(dom, 'dark')?.unsafePerformIO, 'function');
+  test('DOM не изменён до запуска', dom.getAttribute('body', 'data-theme'), null);
+  const result = applyTheme(dom, 'dark')?.unsafePerformIO?.();
+  test('unsafePerformIO возвращает тему', result, 'dark');
+  test('DOM изменён после запуска', dom.getAttribute('body', 'data-theme'), 'dark');
+}
+
+// 5.6 loadAndApplyTheme
+console.log('\n5.6 loadAndApplyTheme — полный пайплайн:');
+{
+  // Сценарий 1: всё хорошо — тема dark
+  const s1 = createStorage({ config: '{"theme":"dark","lang":"ru"}' });
+  const d1 = createDOM();
+  const io1 = loadAndApplyTheme(s1, d1);
+  test('loadAndApplyTheme возвращает IO', typeof io1?.unsafePerformIO, 'function');
+  test('DOM не изменён до запуска', d1.getAttribute('body', 'data-theme'), null);
+  test('пайплайн возвращает "Тема применена: dark"', io1?.unsafePerformIO?.(), 'Тема применена: dark');
+  test('DOM содержит тему dark', d1.getAttribute('body', 'data-theme'), 'dark');
+
+  // Сценарий 2: тема light
+  const s2 = createStorage({ config: '{"theme":"light"}' });
+  const d2 = createDOM();
+  test('тема light применена', loadAndApplyTheme(s2, d2)?.unsafePerformIO?.(), 'Тема применена: light');
+  test('DOM содержит light',   d2.getAttribute('body', 'data-theme'), 'light');
+
+  // Сценарий 3: конфиг отсутствует
+  const s3 = createStorage({});
+  const d3 = createDOM();
+  test(
+    'нет конфига → ошибка',
+    loadAndApplyTheme(s3, d3)?.unsafePerformIO?.(),
+    'Ошибка: Конфиг не найден'
+  );
+  test('DOM не изменён при ошибке', d3.getAttribute('body', 'data-theme'), null);
+
+  // Сценарий 4: некорректный JSON
+  const s4 = createStorage({ config: 'не json' });
+  const d4 = createDOM();
+  test(
+    'некорректный JSON → ошибка',
+    loadAndApplyTheme(s4, d4)?.unsafePerformIO?.()?.startsWith('Ошибка: Некорректный JSON'),
+    true
+  );
+
+  // Сценарий 5: поле theme отсутствует
+  const s5 = createStorage({ config: '{"lang":"ru"}' });
+  const d5 = createDOM();
+  test(
+    'нет поля theme → ошибка',
+    loadAndApplyTheme(s5, d5)?.unsafePerformIO?.(),
+    'Ошибка: Тема не указана в конфиге'
+  );
+
+  // Сценарий 6: недопустимая тема
+  const s6 = createStorage({ config: '{"theme":"purple"}' });
+  const d6 = createDOM();
+  test(
+    'недопустимая тема → ошибка',
+    loadAndApplyTheme(s6, d6)?.unsafePerformIO?.()?.startsWith('Ошибка: Недопустимая тема'),
+    true
+  );
+}
+
+// Итог
+console.log(`\nРезультат: ${passed} пройдено, ${failed} провалено`);
+if (failed === 0) {
+  console.log('Все тесты пройдены!');
+} else {
+  console.log('Есть ошибки — исправь TODO и запусти снова.');
+  process.exit(1);
+}

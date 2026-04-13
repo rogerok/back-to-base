@@ -1,3 +1,5 @@
+import { expect, it } from 'vitest';
+
 /**
  * Упражнение 2: chain для безопасной навигации с Maybe
  * Сложность: средняя
@@ -15,7 +17,7 @@
  *   npx tsx exercise-2.ts
  */
 
-import { Maybe } from "./containers.ts";
+import { Maybe } from './containers.ts';
 
 // ---------------------------------------------------------------------------
 // Вспомогательные функции — уже реализованы, используй их в заданиях
@@ -24,14 +26,14 @@ import { Maybe } from "./containers.ts";
 // safeProp: безопасный доступ к свойству объекта
 // Возвращает Maybe — значит для навигации нужен chain.
 // Принимает unknown — чтобы работать в chain после любого предыдущего шага.
-export const safeProp =
+const safeProp =
   (key: string) =>
   (obj: unknown): Maybe<unknown> =>
     Maybe.of(obj == null ? null : (obj as Record<string, unknown>)[key]);
 
 // safeHead: безопасный доступ к первому элементу массива
 // Возвращает Maybe — тоже требует chain
-export const safeHead = (arr: unknown): Maybe<unknown> =>
+const safeHead = (arr: unknown): Maybe<unknown> =>
   Array.isArray(arr) && arr.length > 0 ? Maybe.of(arr[0]) : Maybe.of(null);
 
 // ---------------------------------------------------------------------------
@@ -50,11 +52,13 @@ export const safeHead = (arr: unknown): Maybe<unknown> =>
 //   getCity(null)                               → 'Город не указан'
 // ---------------------------------------------------------------------------
 
-export const getCity = (user: unknown): string => {
-  return Maybe.of(user)
-    .chain(safeProp("address"))
-    .chain(safeProp("city"))
-    .getOrElse("Город не указан") as string;
+const getCity = (user: unknown): string => {
+  // TODO: Maybe.of(user).chain(...).chain(...).getOrElse(...)
+  //
+  // Подсказка: safeProp('address') возвращает функцию,
+  // которую можно передать прямо в chain:
+  //   Maybe.of(user).chain(safeProp('address'))
+  return undefined as unknown as string;
 };
 
 // ---------------------------------------------------------------------------
@@ -80,12 +84,13 @@ export const getCity = (user: unknown): string => {
 //     → 'Email не найден'
 // ---------------------------------------------------------------------------
 
-export const getFirstFriendEmail = (user: unknown): string => {
-  return Maybe.of(user)
-    .chain(safeProp("friends"))
-    .chain(safeHead)
-    .chain(safeProp("email"))
-    .getOrElse("Email не найден") as string;
+const getFirstFriendEmail = (user: unknown): string => {
+  // TODO: Maybe.of(user)
+  //         .chain(safeProp('friends'))   — достаём массив friends
+  //         .chain(safeHead)              — берём первого
+  //         .chain(safeProp('email'))     — берём email
+  //         .getOrElse('Email не найден')
+  return undefined as unknown as string;
 };
 
 // ---------------------------------------------------------------------------
@@ -107,10 +112,17 @@ export const getFirstFriendEmail = (user: unknown): string => {
 // Используй .getOrElse(null).
 // ---------------------------------------------------------------------------
 
-export const getConfigValue = (config: unknown, ...keys: string[]): unknown => {
-  return keys
-    .reduce((maybeObj, key) => maybeObj.chain(safeProp(key)), Maybe.of(config))
-    .getOrElse(null);
+const getConfigValue = (config: unknown, ...keys: string[]): unknown => {
+  // TODO:
+  // Начни с Maybe.of(config), затем для каждого ключа из keys
+  // вызывай .chain(safeProp(key)).
+  // В конце — .getOrElse(null).
+  //
+  // Подсказка: keys.reduce(
+  //   (maybeObj, key) => maybeObj.chain(safeProp(key)),
+  //   Maybe.of(config)
+  // ).getOrElse(null)
+  return undefined as unknown;
 };
 
 // ---------------------------------------------------------------------------
@@ -129,14 +141,92 @@ export const getConfigValue = (config: unknown, ...keys: string[]): unknown => {
 //   getAge({})                → 0
 // ---------------------------------------------------------------------------
 
-export const getAgeWrong = (user: unknown): Maybe<unknown> => {
-  return Maybe.of(user).map(safeProp("age"));
+const getAgeWrong = (user: unknown): Maybe<unknown> => {
+  // TODO: Maybe.of(user).map(safeProp('age'))
+  // — это возвращает Maybe(Maybe(age)), что неудобно
+  return undefined as unknown as Maybe<unknown>;
 };
 
-interface User {
-  age: number | null;
+const getAge = (user: unknown): number => {
+  // TODO: правильная версия через chain
+  return undefined as unknown as number;
+};
+
+// ---------------------------------------------------------------------------
+// Тесты — не изменяй эту секцию
+// ---------------------------------------------------------------------------
+
+function test(description: string, actual: unknown, expected: unknown): void {
+  it(description, () => {
+    expect(actual).toEqual(expected);
+  });
 }
 
-export const getAge = (user: User | null): number => {
-  return Maybe.of(user).chain(safeProp("age")).getOrElse(0) as number;
-};
+console.log('\n--- Упражнение 2: chain для безопасной навигации ---\n');
+
+// 2.1 getCity
+console.log('2.1 getCity:');
+test('адрес и город есть',            getCity({ address: { city: 'Москва' } }),          'Москва');
+test('есть address, нет city',        getCity({ address: {} }),                            'Город не указан');
+test('нет address',                   getCity({ name: 'Иван' }),                           'Город не указан');
+test('null на входе',                 getCity(null),                                       'Город не указан');
+test('address равен null',            getCity({ address: null }),                          'Город не указан');
+test('city равен undefined',          getCity({ address: { city: undefined } }),           'Город не указан');
+
+// 2.2 getFirstFriendEmail
+console.log('\n2.2 getFirstFriendEmail:');
+test(
+  'первый друг с email',
+  getFirstFriendEmail({ friends: [{ email: 'alice@mail.com' }] }),
+  'alice@mail.com'
+);
+test(
+  'первый друг без email',
+  getFirstFriendEmail({ friends: [{ name: 'Боб' }] }),
+  'Email не найден'
+);
+test(
+  'массив друзей пуст',
+  getFirstFriendEmail({ friends: [] }),
+  'Email не найден'
+);
+test(
+  'нет поля friends',
+  getFirstFriendEmail({}),
+  'Email не найден'
+);
+test(
+  'несколько друзей — берём первого',
+  getFirstFriendEmail({
+    friends: [{ email: 'first@mail.com' }, { email: 'second@mail.com' }],
+  }),
+  'first@mail.com'
+);
+
+// 2.3 getConfigValue
+console.log('\n2.3 getConfigValue:');
+const cfg = { db: { host: { name: 'localhost' }, port: 5432 }, debug: true };
+test('путь из трёх ключей',           getConfigValue(cfg, 'db', 'host', 'name'), 'localhost');
+test('путь из двух ключей',           getConfigValue(cfg, 'db', 'port'),         5432);
+test('булево значение',               getConfigValue(cfg, 'debug'),              true);
+test('несуществующий ключ',           getConfigValue(cfg, 'api'),                null);
+test('несуществующий вложенный ключ', getConfigValue(cfg, 'db', 'password'),     null);
+test('null на входе',                 getConfigValue(null, 'db'),                null);
+test('пустой путь ключей',            getConfigValue(cfg),                       cfg);
+
+// 2.4 map vs chain
+console.log('\n2.4 map vs chain:');
+{
+  it('getAgeWrong возвращает Maybe(Maybe(25)) — вложенность!', () => {
+    const wrongResult = getAgeWrong({ age: 25 });
+    const isNestedMaybe =
+      wrongResult instanceof Maybe &&
+      wrongResult._value instanceof Maybe &&
+      (wrongResult._value as Maybe<unknown>)._value === 25;
+    expect(isNestedMaybe).toBe(true);
+  });
+}
+test('getAge({ age: 25 }) → 25',  getAge({ age: 25 }), 25);
+test('getAge({ age: 0 })  → 0',   getAge({ age: 0 }),  0);
+test('getAge({})          → 0',   getAge({}),          0);
+test('getAge(null)        → 0',   getAge(null),        0);

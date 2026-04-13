@@ -1,3 +1,5 @@
+import { expect, it } from 'vitest';
+
 /**
  * Упражнение 1: Разминка — join и снятие вложенности
  * Сложность: начинающий
@@ -11,7 +13,7 @@
  *   npx tsx exercise-1.ts
  */
 
-import { Maybe } from "./containers.ts";
+import { Maybe } from './containers.ts';
 
 // ---------------------------------------------------------------------------
 // Задание 1.1 — собственный класс Box
@@ -34,7 +36,7 @@ import { Maybe } from "./containers.ts";
 //     .join()                      → 7
 // ---------------------------------------------------------------------------
 
-export class Box<A> {
+class Box<A> {
   readonly _value: A;
 
   constructor(value: A) {
@@ -42,21 +44,23 @@ export class Box<A> {
   }
 
   static of<A>(value: A): Box<A> {
-    return new Box(value);
+    // TODO: оберни value в новый Box
+    return undefined as unknown as Box<A>;
   }
 
   map<B>(fn: (a: A) => B): Box<B> {
-    return new Box(fn(this._value));
+    // TODO: верни новый Box с применённым fn
+    return undefined as unknown as Box<B>;
   }
 
   join(): A {
     // TODO: верни this._value (просто снять обёртку)
-    return this._value;
+    return undefined as unknown as A;
   }
 
   inspect(): string {
     const inner = (this._value as unknown as { inspect?: () => string }).inspect?.() ?? this._value;
-    return `Box(${String(inner)})`;
+    return `Box(${inner})`;
   }
 }
 
@@ -72,8 +76,9 @@ export class Box<A> {
 //   flattenBox(Box.of(Box.of(Box.of('привет')))) → Box('привет')
 // ---------------------------------------------------------------------------
 
-export const flattenBox = <A>(tripleNested: Box<Box<Box<A>>>): Box<A> => {
-  return tripleNested.join().join();
+const flattenBox = <A>(tripleNested: Box<Box<Box<A>>>): Box<A> => {
+  // TODO: два .join()
+  return undefined as unknown as Box<A>;
 };
 
 // ---------------------------------------------------------------------------
@@ -96,13 +101,14 @@ export const flattenBox = <A>(tripleNested: Box<Box<Box<A>>>): Box<A> => {
 //   divideAndDouble(5, 0)   → Box(null) // деление на 0 → Box(null)
 // ---------------------------------------------------------------------------
 
-export const safeDivide = (a: number, b: number): Box<number | null> =>
+const safeDivide = (a: number, b: number): Box<number | null> =>
   b === 0 ? Box.of(null) : Box.of(a / b);
 
-export const divideAndDouble = (a: number, b: number): Box<number | null> => {
-  return safeDivide(a, b)
-    .map((a) => (a === null ? Box.of(null) : Box.of(a * 2)))
-    .join();
+const divideAndDouble = (a: number, b: number): Box<number | null> => {
+  // TODO: safeDivide(a, b).map(...).join()
+  // Подсказка: fn внутри map должна вернуть Box с удвоенным значением
+  // Если внутри null — верни Box(null) (не умножай null)
+  return undefined as unknown as Box<number | null>;
 };
 
 // ---------------------------------------------------------------------------
@@ -122,6 +128,77 @@ export const divideAndDouble = (a: number, b: number): Box<number | null> => {
 //   unwrapNested(null) → Maybe(null)    // Maybe(Maybe(null)).join() = Maybe(null)
 // ---------------------------------------------------------------------------
 
-export const unwrapNested = <A>(value: A | null): Maybe<A> => {
-  return Maybe.of(Maybe.of(value)).join();
+const unwrapNested = <A>(value: A | null): Maybe<A> => {
+  // TODO: Maybe.of(Maybe.of(value)).join()
+  return undefined as unknown as Maybe<A>;
 };
+
+// ---------------------------------------------------------------------------
+// Тесты — не изменяй эту секцию
+// ---------------------------------------------------------------------------
+
+function test(description: string, actual: unknown, expected: unknown): void {
+  it(description, () => {
+    const value = typeof actual === 'function' ? (actual as () => unknown)() : actual;
+    expect(value).toEqual(expected);
+  });
+}
+
+console.log('\n--- Упражнение 1: join и снятие вложенности ---\n');
+
+// 1.1 Box.join
+console.log('1.1 Box — join:');
+test(
+  'Box.of(42).join() возвращает 42',
+  () => Box.of(42).join(),
+  42
+);
+test(
+  'Box.of(Box.of(42)).join() возвращает Box(42)',
+  () => Box.of(Box.of(42)).join(),
+  Box.of(42)
+);
+test(
+  'Box.of("строка").join() возвращает строку',
+  () => Box.of('строка').join(),
+  'строка'
+);
+test(
+  'Box.map работает корректно',
+  () => Box.of(5).map(x => x * 2)._value,
+  10
+);
+
+// 1.2 flattenBox
+console.log('\n1.2 flattenBox — тройное вложение:');
+const triple7   = Box.of(Box.of(Box.of(7)));
+const tripleStr = Box.of(Box.of(Box.of('hello')));
+test('flattenBox(Box(Box(Box(7)))) → Box(7)',             flattenBox(triple7),   Box.of(7));
+test('flattenBox(Box(Box(Box("hello")))) → Box("hello")', flattenBox(tripleStr), Box.of('hello'));
+
+// 1.3 divideAndDouble
+console.log('\n1.3 divideAndDouble — map + join:');
+test('divideAndDouble(10, 2) → Box(10)',   divideAndDouble(10, 2), Box.of(10));
+test('divideAndDouble(9, 3)  → Box(6)',    divideAndDouble(9, 3),  Box.of(6));
+test('divideAndDouble(5, 0)  → Box(null)', divideAndDouble(5, 0),  Box.of(null));
+test('divideAndDouble(0, 4)  → Box(0)',    divideAndDouble(0, 4),  Box.of(0));
+
+// 1.4 Maybe.join
+console.log('\n1.4 unwrapNested — Maybe.join:');
+test(
+  'unwrapNested(99) → Maybe(99)',
+  unwrapNested(99),
+  Maybe.of(99)
+);
+test(
+  'unwrapNested("привет") → Maybe("привет")',
+  unwrapNested('привет'),
+  Maybe.of('привет')
+);
+{
+  it('unwrapNested(null) → Maybe(null) (isNothing)', () => {
+    const result = unwrapNested(null);
+    const isNothing = result instanceof Maybe && result.isNothing;
+    expect(isNothing).toBe(true);
+  });
+}

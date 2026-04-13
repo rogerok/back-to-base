@@ -1,3 +1,5 @@
+import { expect, it } from 'vitest';
+
 /**
  * Упражнение 4: IO chain — последовательность эффектов
  * Сложность: средняя-сложная
@@ -26,20 +28,20 @@ import { IO } from './containers.ts';
 // Это позволяет запускать упражнение в Node.js без браузера.
 // ---------------------------------------------------------------------------
 
-export interface Storage {
+interface Storage {
   getItem: (key: string) => string | null;
   setItem: (key: string, value: string) => void;
   inspect: () => Record<string, string>;
 }
 
-export interface DOM {
+interface DOM {
   getValue: (id: string) => string | null;
   setValue: (id: string, value: string) => void;
   inspect: () => Record<string, string>;
 }
 
 // Симулированное хранилище (аналог localStorage)
-export const createStorage = (initial: Record<string, string> = {}): Storage => {
+const createStorage = (initial: Record<string, string> = {}): Storage => {
   const store: Record<string, string> = { ...initial };
   return {
     getItem: (key) => store[key] ?? null,
@@ -49,7 +51,7 @@ export const createStorage = (initial: Record<string, string> = {}): Storage => 
 };
 
 // Симулированный DOM (аналог document.getElementById)
-export const createDOM = (initial: Record<string, string> = {}): DOM => {
+const createDOM = (initial: Record<string, string> = {}): DOM => {
   const elements: Record<string, { value: string }> = {};
   for (const [id, value] of Object.entries(initial)) {
     elements[id] = { value: String(value) };
@@ -91,12 +93,12 @@ export const createDOM = (initial: Record<string, string> = {}): DOM => {
 //   io.unsafePerformIO(); // → 'Иван' (вот теперь выполнено)
 // ---------------------------------------------------------------------------
 
-export const readStorage = (storage: Storage, key: string): IO<string | null> => {
+const readStorage = (storage: Storage, key: string): IO<string | null> => {
   // TODO: new IO(() => storage.getItem(key))
   return undefined as unknown as IO<string | null>;
 };
 
-export const writeDOM = (dom: DOM, id: string, value: string): IO<string> => {
+const writeDOM = (dom: DOM, id: string, value: string): IO<string> => {
   // TODO: new IO(() => { dom.setValue(id, value); return value; })
   return undefined as unknown as IO<string>;
 };
@@ -116,7 +118,7 @@ export const writeDOM = (dom: DOM, id: string, value: string): IO<string> => {
 //   → 'ПРИВЕТ'
 // ---------------------------------------------------------------------------
 
-export const toUpperCaseIO = (io: IO<string | null>): IO<string> => {
+const toUpperCaseIO = (io: IO<string | null>): IO<string> => {
   // TODO: io.map(str => str.toUpperCase())
   return undefined as unknown as IO<string>;
 };
@@ -147,7 +149,7 @@ export const toUpperCaseIO = (io: IO<string | null>): IO<string> => {
 //   // Теперь dom.getValue('result') === '10'
 // ---------------------------------------------------------------------------
 
-export const copyAndTransform = (
+const copyAndTransform = (
   storage: Storage,
   dom: DOM,
   fromKey: string,
@@ -193,7 +195,105 @@ export const copyAndTransform = (
 //   )
 // ---------------------------------------------------------------------------
 
-export const buildGreeting = (storage: Storage, dom: DOM): IO<string> => {
+const buildGreeting = (storage: Storage, dom: DOM): IO<string> => {
   // TODO
   return undefined as unknown as IO<string>;
 };
+
+// ---------------------------------------------------------------------------
+// Тесты — не изменяй эту секцию
+// ---------------------------------------------------------------------------
+
+function test(description: string, actual: unknown, expected: unknown): void {
+  it(description, () => {
+    expect(actual).toEqual(expected);
+  });
+}
+
+console.log('\n--- Упражнение 4: IO chain — последовательность эффектов ---\n');
+
+// 4.1 readStorage и writeDOM
+console.log('4.1 readStorage и writeDOM:');
+{
+  const storage = createStorage({ name: 'Иван', count: '42' });
+  const dom = createDOM();
+
+  const ioName = readStorage(storage, 'name');
+  test('readStorage возвращает IO (не выполняет сразу)', typeof ioName?.unsafePerformIO, 'function');
+  test('readStorage("name") → "Иван"', ioName?.unsafePerformIO?.(), 'Иван');
+  test('readStorage("count") → "42"', readStorage(storage, 'count')?.unsafePerformIO?.(), '42');
+  test('readStorage несуществующего ключа → null', readStorage(storage, 'missing')?.unsafePerformIO?.(), null);
+
+  const ioWrite = writeDOM(dom, 'title', 'Привет');
+  test('writeDOM возвращает IO (не пишет сразу)', dom.getValue('title'), null);
+  const writeResult = ioWrite?.unsafePerformIO?.();
+  test('writeDOM.unsafePerformIO() возвращает записанное значение', writeResult, 'Привет');
+  test('writeDOM записывает в DOM', dom.getValue('title'), 'Привет');
+}
+
+// 4.2 toUpperCaseIO
+console.log('\n4.2 toUpperCaseIO:');
+{
+  const storage = createStorage({ greeting: 'привет' });
+  const result = toUpperCaseIO(readStorage(storage, 'greeting'))?.unsafePerformIO?.();
+  test('читает и переводит в верхний регистр', result, 'ПРИВЕТ');
+
+  const storage2 = createStorage({ word: 'hello world' });
+  test('несколько слов', toUpperCaseIO(readStorage(storage2, 'word'))?.unsafePerformIO?.(), 'HELLO WORLD');
+}
+
+// 4.3 copyAndTransform
+console.log('\n4.3 copyAndTransform:');
+{
+  const storage = createStorage({ count: '5', price: '100' });
+  const dom = createDOM();
+
+  const ioDouble = copyAndTransform(
+    storage, dom, 'count', 'result', (n) => String(Number(n) * 2)
+  );
+  test('copyAndTransform возвращает IO', typeof ioDouble?.unsafePerformIO, 'function');
+  test('DOM не изменён до запуска', dom.getValue('result'), null);
+
+  ioDouble?.unsafePerformIO?.();
+  test('DOM изменён после запуска', dom.getValue('result'), '10');
+
+  // Второй вызов — трансформация цены
+  copyAndTransform(
+    storage, dom, 'price', 'discounted', (p) => String(Number(p) * 0.9)
+  )?.unsafePerformIO?.();
+  test('скидка 10% → 90', dom.getValue('discounted'), '90');
+
+  // Несуществующий ключ
+  copyAndTransform(
+    storage, dom, 'missing', 'output', (v) => `[${v}]`
+  )?.unsafePerformIO?.();
+  test('несуществующий ключ → "[null]"', dom.getValue('output'), '[null]');
+}
+
+// 4.4 buildGreeting
+console.log('\n4.4 buildGreeting:');
+{
+  const storage = createStorage({ firstName: 'Иван', lastName: 'Петров' });
+  const dom = createDOM();
+
+  const io = buildGreeting(storage, dom);
+  test('buildGreeting возвращает IO', typeof io?.unsafePerformIO, 'function');
+  test('приветствие не записано до запуска', dom.getValue('greeting'), null);
+
+  io?.unsafePerformIO?.();
+  test(
+    'приветствие записано после запуска',
+    dom.getValue('greeting'),
+    'Добро пожаловать, Иван Петров!'
+  );
+
+  // Другие данные
+  const storage2 = createStorage({ firstName: 'Мария', lastName: 'Иванова' });
+  const dom2 = createDOM();
+  buildGreeting(storage2, dom2)?.unsafePerformIO?.();
+  test(
+    'приветствие для другого пользователя',
+    dom2.getValue('greeting'),
+    'Добро пожаловать, Мария Иванова!'
+  );
+}
