@@ -15,6 +15,7 @@ import { concatAll } from "fp-ts/Monoid";
 import * as NonEmptyArray from "fp-ts/NonEmptyArray";
 import * as t from "io-ts";
 import * as tt from "io-ts-types";
+import * as PathReporter from "io-ts/lib/PathReporter.js";
 //
 // // .... impl
 //
@@ -42,13 +43,18 @@ import path from "node:path";
 import readline from "node:readline";
 
 import { JsonParseError, SettingsSchema, TCar, TRounds, TSettings } from "./model.ts";
-import { getRandomArbitrary } from "./utils.ts";
+import { createQuestion, generateRounds } from "./utils.ts";
 
-const loadSettings = pipe(
+const loadSettingsEither = pipe(
   readFileSync("./settings.json", "utf8"),
   J.parse,
-  E.tryCatchK(
-    (a) => SettingsSchema.decode(a),
+  E.chainW((a) =>
+    pipe(
+      SettingsSchema.decode(a),
+      E.mapLeft((errs) => PathReporter.failure(errs).join("; \n")),
+    ),
+  ),
+  E.mapLeft(
     (e): JsonParseError => ({
       error: E.toError(e),
       type: "JsonDecodeError",
@@ -56,13 +62,16 @@ const loadSettings = pipe(
   ),
 );
 
-const generateRound = (settings: E.Either<JsonParseError, TSettings>) => {
-  const r = IOE.fromEither(settings);
+export const loadSettings = (): TSettings =>
+  pipe(
+    loadSettingsEither,
+    E.getOrElseW((err) => {
+      Console.error(err);
+      throw new Error(err.error.message);
+    }),
+  );
 
-  console.log(settings);
-
-  return null;
-};
+const generateRound = (settings: TSettings) => pipe(settings, generateRounds);
 
 // const run = pipe(
 //   loadSettings,
@@ -84,7 +93,21 @@ const generateRound = (settings: E.Either<JsonParseError, TSettings>) => {
 //   await main();
 // })();
 
-const run = pipe(loadSettings, generateRound);
+// TODO: следующим можно сделать сравнение
+
+const runGame = (rl: readline.Interface) => (rounds: ReturnType<typeof generateRound>) => {
+  const answers = [];
+
+  rounds.forEach((round) => {
+    rl.question(createQuestion(round), (answer) => {
+      answers.push(answer);
+    });
+  });
+
+  return null;
+};
+
+const run = (rl: readline.Interface) => pipe(loadSettings(), generateRound, runGame(rl));
 
 (async () => {
   const rl = readline.createInterface({
@@ -94,7 +117,7 @@ const run = pipe(loadSettings, generateRound);
 
   // run();
 
-  // const main = run(rl);
+  const main = run(rl);
 
   // await main();
 })();
