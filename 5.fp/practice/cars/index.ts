@@ -1,23 +1,20 @@
+import * as Eq from "fp-ts/Eq";
+import { sequenceS } from "fp-ts/lib/Apply.js";
+import * as Console from "fp-ts/lib/Console.js";
+import { error } from "fp-ts/lib/Console.js";
 import * as E from "fp-ts/lib/Either.js";
-// import { concatAll } from "fp-ts/Monoid";
-// import * as NonEmptyArray from "fp-ts/NonEmptyArray";
-// import * as Ord from "fp-ts/Ord";
-// import * as R from "fp-ts/Random";
-// import * as RTE from "fp-ts/ReaderTaskEither";
 import { flow, pipe } from "fp-ts/lib/function.js";
-// import { sequenceS } from "fp-ts/Apply";
-// import * as Console from "fp-ts/Console";
-// import * as Eq from "fp-ts/Eq";
-// import * as IO from "fp-ts/IO";
+import * as IO from "fp-ts/lib/IO.js";
 import * as IOE from "fp-ts/lib/IOEither.js";
-// import * as J from "fp-ts/Json";
 import * as J from "fp-ts/lib/Json.js";
-// import * as N from "fp-ts/number";
-// import * as t from "io-ts";
-// import * as tt from "io-ts-types";
-// import { readFileSync } from "node:fs";
-// import path from "node:path";
-// import readline from "node:readline";
+import * as N from "fp-ts/lib/number.js";
+import * as Ord from "fp-ts/lib/Ord.js";
+import * as R from "fp-ts/lib/Random.js";
+import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
+import { concatAll } from "fp-ts/Monoid";
+import * as NonEmptyArray from "fp-ts/NonEmptyArray";
+import * as t from "io-ts";
+import * as tt from "io-ts-types";
 //
 // // .... impl
 //
@@ -40,55 +37,26 @@ import * as J from "fp-ts/lib/Json.js";
 //
 //   await main();
 // })();
-import * as t from "io-ts";
 import { readFileSync } from "node:fs";
-import * as readline from "node:readline";
+import path from "node:path";
+import readline from "node:readline";
 
-const getRandomArbitrary = (min: number, max: number) => {
-  return Math.random() * (max - min) + min;
-};
-
-const lessOrEqual = (a: number) => (b: number) => b <= a;
-const greaterOrEqual = (a: number) => (b: number) => b >= a;
-const isPositive = (n: number) => greaterOrEqual(0)(n);
-
-const maxMileage = lessOrEqual(100000);
-const minYear = greaterOrEqual(2000);
-const maxYear = lessOrEqual(2026);
-
-const Settings = t.type({
-  allowedBrands: t.tuple([t.literal("Ford"), t.literal("Audi"), t.literal("BMW")]),
-  allowedEngines: t.tuple([t.literal("diesel"), t.literal("petrol"), t.literal("electric")]),
-  maxMileage: t.refinement(t.number, maxMileage, "MaxMileage"),
-  maxYear: t.refinement(t.number, maxYear, "MaxYear"),
-  mileageDifference: t.refinement(t.number, isPositive, "MileageDifference"),
-  minYear: t.refinement(t.number, minYear),
-  numRounds: t.number,
-});
-
-type Settings = t.TypeOf<typeof Settings>;
-
-type Car = {
-  brand: string;
-  engine: string;
-  year: number;
-};
+import { JsonParseError, SettingsSchema, TCar, TRounds, TSettings } from "./model.ts";
+import { getRandomArbitrary } from "./utils.ts";
 
 const loadSettings = pipe(
   readFileSync("./settings.json", "utf8"),
   J.parse,
-  E.chainW((a) => Settings.decode(a)),
+  E.tryCatchK(
+    (a) => SettingsSchema.decode(a),
+    (e): JsonParseError => ({
+      error: E.toError(e),
+      type: "JsonDecodeError",
+    }),
+  ),
 );
 
-const generateRandomCar = (settings: Settings): Car => {
-  return {
-    brand: settings.allowedBrands[getRandomArbitrary(0, settings.allowedBrands.length - 1)],
-    engine: settings.allowedEngines[getRandomArbitrary(0, settings.allowedEngines.length - 1)],
-    year: getRandomArbitrary(settings.minYear, settings.maxYear),
-  };
-};
-
-const generateRound = (settings: E.Either<unknown, Settings>) => {
+const generateRound = (settings: E.Either<JsonParseError, TSettings>) => {
   const r = IOE.fromEither(settings);
 
   console.log(settings);
