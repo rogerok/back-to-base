@@ -17,7 +17,7 @@ export const minYear = greaterOrEqual(2000);
 export const maxYear = lessOrEqual(2026);
 
 export const generateRandomCar = (settings: TSettings): TCar => ({
-  brand: ings.allowedBrands[R.randomRange(0, settings.allowedBrands.length - 1)],
+  brand: settings.allowedBrands[getRandomArbitrary(0, settings.allowedBrands.length - 1)],
   engine: settings.allowedEngines[getRandomArbitrary(0, settings.allowedEngines.length - 1)],
   year: getRandomArbitrary(settings.minYear, settings.maxYear),
 });
