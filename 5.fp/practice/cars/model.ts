@@ -18,6 +18,7 @@ export const EnginesTuple = t.tuple([Diesel, Petrol, Electric]);
 export const SettingsSchema = t.type({
   allowedBrands: BrandsTuple,
   allowedEngines: EnginesTuple,
+  carsInRound: t.number,
   maxMileage: t.refinement(t.number, maxMileage, "MaxMileage"),
   maxYear: t.refinement(t.number, maxYear, "MaxYear"),
   mileageDifference: t.refinement(t.number, isPositive, "MileageDifference"),
@@ -35,19 +36,24 @@ export const CarSchema = t.type({
 
 export type TSettings = t.TypeOf<typeof SettingsSchema>;
 export type TCar = t.TypeOf<typeof CarSchema>;
+export type TRankedCar = {
+  car: TCar;
+  points: number;
+};
+export type TCarPair = [TCar, TCar];
+
+export type ScoreTable = Record<number, number>;
 
 const { brand: __, engine: _, ...carBaseProps } = CarSchema.props;
 export const CarWithCoefSchema = t.type({
   ...carBaseProps,
-  coef: t.number,
+  brandCoef: t.number,
+  engineCoef: t.number,
 });
 
 export type TCarWithCoef = t.TypeOf<typeof CarWithCoefSchema>;
 
-export const RoundSchema = t.type({
-  first: CarSchema,
-  second: CarSchema,
-});
+export const RoundSchema = t.array(CarSchema);
 
 export type TRounds = t.TypeOf<typeof RoundSchema>;
 

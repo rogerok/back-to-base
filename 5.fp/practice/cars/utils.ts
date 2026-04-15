@@ -1,21 +1,34 @@
 import * as A from "fp-ts/lib/Array.js";
+import * as boolean from "fp-ts/lib/boolean.js";
 import * as E from "fp-ts/lib/Either";
 import * as Eq from "fp-ts/lib/Eq.js";
 import { flow, pipe } from "fp-ts/lib/function.js";
 import * as IO from "fp-ts/lib/IO.js";
 import * as IOE from "fp-ts/lib/IOEither";
+import * as M from "fp-ts/lib/Map.js";
+import { concatAll } from "fp-ts/lib/Monoid.js";
 import * as N from "fp-ts/lib/number.js";
+import * as Option from "fp-ts/lib/Option.js";
+import * as Ord from "fp-ts/lib/Ord.js";
+import * as Ordering from "fp-ts/lib/Ordering.js";
+import * as Predicate from "fp-ts/lib/Predicate.js";
 import { randomInt } from "fp-ts/lib/Random";
 import * as R from "fp-ts/lib/Random.js";
+import * as RA from "fp-ts/lib/ReadonlyArray.js";
+import * as Record from "fp-ts/lib/Record.js";
 import * as Semigroup from "fp-ts/lib/Semigroup.js";
+import * as Struct from "fp-ts/lib/struct.js";
 
 import {
   priceBrandCoefficient,
   priceEngineCoefficient,
+  ScoreTable,
   TBrand,
   TCar,
+  TCarPair,
   TCarWithCoef,
   TEngine,
+  TRankedCar,
   TRounds,
   TSettings,
 } from "./model.ts";
@@ -36,34 +49,103 @@ export const generateRandomCar = (settings: TSettings, mileage: number, id: numb
   year: R.randomInt(settings.minYear, settings.maxYear)(),
 });
 
-export const generateRounds = (settings: TSettings) => {
-  const mileage1 = R.randomInt(0, settings.maxMileage)();
+export const generateRounds = (settings: TSettings): TRounds[] => {
+  const maxStart = Math.max(0, settings.maxMileage - settings.mileageDifference);
+  const start = R.randomInt(0, maxStart)();
+  const end = Math.min(settings.maxMileage, start + settings.mileageDifference);
 
-  const minMileage2 = Math.max(0, mileage1 - settings.mileageDifference);
-  const maxMileage2 = Math.min(settings.maxMileage, mileage1 + settings.mileageDifference);
-  const mileage2 = R.randomInt(minMileage2, maxMileage2)();
+  const mileages = A.makeBy(settings.carsInRound, () => R.randomInt(start, end)());
 
-  return A.makeBy(settings.numRounds, () => ({
-    first: generateRandomCar(settings, mileage1, 1),
-    second: generateRandomCar(settings, mileage2, 2),
-  }));
+  return A.makeBy(settings.numRounds, () =>
+    A.makeBy(settings.carsInRound, (i) => generateRandomCar(settings, mileages[i], i + 1)),
+  );
 };
 
 export const createCarLine = (car: TCar) =>
-  `Brand: ${car.brand}, engine: ${car.engine}, year: ${car.year.toString()}, milleage: ${car.mileage}`;
+  `${car.id.toString()}) Brand: ${car.brand}, engine: ${car.engine}, year: ${car.year.toString()}, milleage: ${car.mileage.toString()}`;
 
 export const createQuestion = (round: TRounds) =>
-  `
-    Which car is more expensive?\n
-    ${round.first.id.toString()}) ${createCarLine(round.first)}
-    ${round.first.id.toString()}) ${createCarLine(round.second)}
-    3) Equal
+  `Which car is more expensive?\n
+  \n${pipe(round, RA.map(createCarLine)).join("\n")}
+   \n${(round.length + 1).toString()}) Equal
   `;
 
 export const getBrandCoef = (car: TCar) => priceBrandCoefficient[car.brand];
 export const getEngineCoef = (car: TCar) => priceEngineCoefficient[car.engine];
+const getCoef = (car: TCar) => N.SemigroupSum.concat(getBrandCoef(car), getEngineCoef(car));
 
 export const mapCar = (car: TCar): TCarWithCoef => ({
   ...car,
-  coef: N.SemigroupSum.concat(getBrandCoef(car), getEngineCoef(car)),
+  brandCoef: getBrandCoef(car),
+  engineCoef: getEngineCoef(car),
 });
+
+const ordByYear: Ord.Ord<TCar> = pipe(
+  N.Ord,
+  Ord.contramap((car) => car.year),
+);
+
+const ordByMileage: Ord.Ord<TCar> = pipe(
+  N.Ord,
+  Ord.contramap((car) => car.mileage),
+);
+
+const isYounger = Ord.gt(ordByYear);
+const isMileageLess = Ord.lt(ordByMileage);
+
+const getBoolBonus = (condition: boolean): number =>
+  pipe(
+    condition,
+    boolean.match(
+      () => 0,
+      () => 1,
+    ),
+  );
+
+export const duelScore = (first: TCar, second: TCar): number =>
+  concatAll(N.MonoidSum)([
+    getCoef(first),
+    getBoolBonus(isYounger(first, second)),
+    getBoolBonus(isMileageLess(first, second)),
+  ]);
+
+export const toPairs = (cars: ReadonlyArray<TCar>): ReadonlyArray<TCarPair> =>
+  pipe(
+    cars,
+    RA.chainWithIndex((i, a) =>
+      pipe(
+        cars,
+        RA.dropLeft(i + 1),
+        RA.map((b): TCarPair => [a, b]),
+      ),
+    ),
+  );
+
+const addPoints = (table: ScoreTable, id: number, score: number) => {
+  const key = id.toString();
+  return Record.upsertAt(
+    key,
+    pipe(
+      Record.lookup(key, table),
+      Option.match(
+        () => score,
+        (prev) => N.SemigroupSum.concat(prev, score),
+      ),
+    ),
+  )(table);
+};
+
+export const buildScoreTable = (cars: TCar[]) =>
+  pipe(
+    toPairs(cars),
+    RA.reduce({} as ScoreTable, (table, [a, b]) =>
+      pipe(
+        N.Ord.compare(duelScore(a, b), duelScore(b, a)),
+        Ordering.match(
+          () => addPoints(table, b.id, 1),
+          () => addPoints(addPoints(table, a.id, 0.5), b.id, 0.5),
+          () => addPoints(table, a.id, 1),
+        ),
+      ),
+    ),
+  );
