@@ -36,6 +36,14 @@ export const CarSchema = t.type({
 export type TSettings = t.TypeOf<typeof SettingsSchema>;
 export type TCar = t.TypeOf<typeof CarSchema>;
 
+const { brand: __, engine: _, ...carBaseProps } = CarSchema.props;
+export const CarWithCoefSchema = t.type({
+  ...carBaseProps,
+  coef: t.number,
+});
+
+export type TCarWithCoef = t.TypeOf<typeof CarWithCoefSchema>;
+
 export const RoundSchema = t.type({
   first: CarSchema,
   second: CarSchema,

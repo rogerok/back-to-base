@@ -4,6 +4,7 @@ import * as Eq from "fp-ts/lib/Eq.js";
 import { flow, pipe } from "fp-ts/lib/function.js";
 import * as IO from "fp-ts/lib/IO.js";
 import * as IOE from "fp-ts/lib/IOEither";
+import * as N from "fp-ts/lib/number.js";
 import { randomInt } from "fp-ts/lib/Random";
 import * as R from "fp-ts/lib/Random.js";
 import * as Semigroup from "fp-ts/lib/Semigroup.js";
@@ -13,6 +14,7 @@ import {
   priceEngineCoefficient,
   TBrand,
   TCar,
+  TCarWithCoef,
   TEngine,
   TRounds,
   TSettings,
@@ -53,25 +55,15 @@ export const createCarLine = (car: TCar) =>
 export const createQuestion = (round: TRounds) =>
   `
     Which car is more expensive?\n
-    1) ${createCarLine(round.first)}
-    2) ${createCarLine(round.second)}
+    ${round.first.id.toString()}) ${createCarLine(round.first)}
+    ${round.first.id.toString()}) ${createCarLine(round.second)}
     3) Equal
   `;
-
-export const eqBrand: Eq.Eq<TBrand> = {
-  equals: (first, second) => priceBrandCoefficient[first] > priceBrandCoefficient[second],
-};
-
-export const eqEngine: Eq.Eq<TEngine> = {
-  equals: (first, second) => priceEngineCoefficient[first] > priceEngineCoefficient[second],
-};
 
 export const getBrandCoef = (car: TCar) => priceBrandCoefficient[car.brand];
 export const getEngineCoef = (car: TCar) => priceEngineCoefficient[car.engine];
 
-const semigroupSum: Semigroup.Semigroup<number> = {
-  concat: (x, y) => x + y,
-};
-
-const countTotalCoef = (car: TCar): number =>
-  semigroupSum.concat(getEngineCoef(car), getBrandCoef(car));
+export const mapCar = (car: TCar): TCarWithCoef => ({
+  ...car,
+  coef: N.SemigroupSum.concat(getBrandCoef(car), getEngineCoef(car)),
+});

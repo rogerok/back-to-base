@@ -44,7 +44,7 @@ import path from "node:path";
 import readline from "node:readline";
 
 import { JsonParseError, SettingsSchema, TCar, TRounds, TSettings } from "./model.ts";
-import { createQuestion, generateRounds } from "./utils.ts";
+import { createQuestion, generateRounds, mapCar } from "./utils.ts";
 
 const loadSettingsEither = pipe(
   readFileSync("./settings.json", "utf8"),
@@ -96,14 +96,13 @@ const generateRound = (settings: TSettings) => pipe(settings, generateRounds);
 
 // TODO: следующим можно сделать сравнение
 
-const eqCar: Eq.Eq<TCar> = Eq.struct({
-  brand: Eq,
-});
-
 const runGame = (rl: readline.Interface) => (rounds: ReturnType<typeof generateRound>) => {
   const answers = [];
 
   rounds.forEach((round) => {
+    const fistCar = pipe(round.first, mapCar);
+    const secondCar = pipe(round.first, mapCar);
+
     rl.question(createQuestion(round), (answer) => {
       answers.push(answer);
     });
