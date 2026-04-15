@@ -16,14 +16,6 @@ export const BrandsTuple = t.tuple([BMW, Audi, Ford]);
 export const EnginesTuple = t.tuple([Diesel, Petrol, Electric]);
 
 export const SettingsSchema = t.type({
-  // allowedBrands: BrandsTuple,
-  // allowedEngines: EnginesTuple,
-  // maxMileage: t.refinement(t.number, maxMileage, "MaxMileage"),
-  // maxYear: t.refinement(t.number, maxYear, "MaxYear"),
-  // mileageDifference: t.refinement(t.number, isPositive, "MileageDifference"),
-  // minYear: t.refinement(t.number, minYear),
-  // numRounds: t.number,
-
   allowedBrands: BrandsTuple,
   allowedEngines: EnginesTuple,
   maxMileage: t.refinement(t.number, maxMileage, "MaxMileage"),
@@ -36,6 +28,7 @@ export const SettingsSchema = t.type({
 export const CarSchema = t.type({
   brand: Brand,
   engine: Engine,
+  id: t.number,
   mileage: t.number,
   year: t.number,
 });
@@ -50,17 +43,23 @@ export const RoundSchema = t.type({
 
 export type TRounds = t.TypeOf<typeof RoundSchema>;
 
+export type TBrand = t.TypeOf<typeof Brand>;
+export type TEngine = t.TypeOf<typeof Engine>;
+
 export type JsonParseError = {
   error: Error;
   type: "JsonDecodeError";
 };
 
-export const priceBrandCoefficient: Record<TCar["brand"], number> = {
+export type TPriceBrandCoefficient = Record<TCar["brand"], number>;
+export type TPriceEngineCoefficient = Record<TCar["engine"], number>;
+
+export const priceBrandCoefficient: TPriceBrandCoefficient = {
   [Audi.value]: 2,
   [BMW.value]: 3,
   [Ford.value]: 1,
 };
-export const priceEngineCoefficient: Record<TCar["engine"], number> = {
+export const priceEngineCoefficient: TPriceEngineCoefficient = {
   [Diesel.value]: 2,
   [Electric.value]: 3,
   [Petrol.value]: 1,

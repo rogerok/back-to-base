@@ -1,8 +1,8 @@
-import * as Eq from "fp-ts/Eq";
 import { sequenceS } from "fp-ts/lib/Apply.js";
 import * as Console from "fp-ts/lib/Console.js";
 import { error } from "fp-ts/lib/Console.js";
 import * as E from "fp-ts/lib/Either.js";
+import * as Eq from "fp-ts/lib/Eq.js";
 import { flow, pipe } from "fp-ts/lib/function.js";
 import * as IO from "fp-ts/lib/IO.js";
 import * as IOE from "fp-ts/lib/IOEither.js";
@@ -11,6 +11,7 @@ import * as N from "fp-ts/lib/number.js";
 import * as Ord from "fp-ts/lib/Ord.js";
 import * as R from "fp-ts/lib/Random.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
+import * as Semigroup from "fp-ts/lib/Semigroup.js";
 import { concatAll } from "fp-ts/Monoid";
 import * as NonEmptyArray from "fp-ts/NonEmptyArray";
 import * as t from "io-ts";
@@ -94,6 +95,10 @@ const generateRound = (settings: TSettings) => pipe(settings, generateRounds);
 // })();
 
 // TODO: следующим можно сделать сравнение
+
+const eqCar: Eq.Eq<TCar> = Eq.struct({
+  brand: Eq,
+});
 
 const runGame = (rl: readline.Interface) => (rounds: ReturnType<typeof generateRound>) => {
   const answers = [];
