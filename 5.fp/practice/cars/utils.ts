@@ -1,34 +1,24 @@
 import * as A from "fp-ts/lib/Array.js";
 import * as boolean from "fp-ts/lib/boolean.js";
 import * as E from "fp-ts/lib/Either";
-import * as Eq from "fp-ts/lib/Eq.js";
-import { flow, pipe } from "fp-ts/lib/function.js";
-import * as IO from "fp-ts/lib/IO.js";
-import * as IOE from "fp-ts/lib/IOEither";
-import * as M from "fp-ts/lib/Map.js";
+import { pipe } from "fp-ts/lib/function.js";
 import { concatAll } from "fp-ts/lib/Monoid.js";
 import * as N from "fp-ts/lib/number.js";
 import * as Option from "fp-ts/lib/Option.js";
 import * as Ord from "fp-ts/lib/Ord.js";
 import * as Ordering from "fp-ts/lib/Ordering.js";
-import * as Predicate from "fp-ts/lib/Predicate.js";
-import { randomInt } from "fp-ts/lib/Random";
 import * as R from "fp-ts/lib/Random.js";
 import * as RA from "fp-ts/lib/ReadonlyArray.js";
 import * as Record from "fp-ts/lib/Record.js";
-import * as Semigroup from "fp-ts/lib/Semigroup.js";
-import * as Struct from "fp-ts/lib/struct.js";
+import { readFileSync } from "node:fs";
 
 import {
   priceBrandCoefficient,
   priceEngineCoefficient,
   ScoreTable,
-  TBrand,
   TCar,
   TCarPair,
   TCarWithCoef,
-  TEngine,
-  TRankedCar,
   TRounds,
   TSettings,
 } from "./model.ts";
@@ -149,3 +139,6 @@ export const buildScoreTable = (cars: TCar[]) =>
       ),
     ),
   );
+
+export const readFile = (path: string, encoding: BufferEncoding) =>
+  E.tryCatch(() => readFileSync(path, { encoding }), E.toError);
