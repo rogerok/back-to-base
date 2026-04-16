@@ -13,7 +13,7 @@ import * as R from "fp-ts/lib/Random.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as RA from "fp-ts/lib/ReadonlyArray.js";
 import * as Record from "fp-ts/lib/Record.js";
-import * as TE from "fp-ts/lib/TaskEither";
+import * as TE from "fp-ts/lib/TaskEither.js";
 import { readFileSync } from "node:fs";
 
 import {
@@ -63,7 +63,7 @@ export const createCarLine = (car: TCar) =>
 export const createQuestion = (round: TRounds) =>
   `Which car is more expensive?\n
   \n${pipe(round, RA.map(createCarLine)).join("\n")}
-   \n${(round.length + 1).toString()}) Equal
+${(round.length + 1).toString()}) Equal
   `;
 
 export const getBrandCoef = (car: TCar) => priceBrandCoefficient[car.brand];
