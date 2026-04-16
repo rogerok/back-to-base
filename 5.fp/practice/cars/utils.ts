@@ -1,6 +1,6 @@
 import * as A from "fp-ts/lib/Array.js";
 import * as boolean from "fp-ts/lib/boolean.js";
-import * as E from "fp-ts/lib/Either";
+import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import { concatAll } from "fp-ts/lib/Monoid.js";
 import * as N from "fp-ts/lib/number.js";
@@ -132,9 +132,24 @@ export const buildScoreTable = (cars: TCar[]) =>
       pipe(
         N.Ord.compare(duelScore(a, b), duelScore(b, a)),
         Ordering.match(
-          () => addPoints(table, b.id, 1),
-          () => addPoints(addPoints(table, a.id, 0.5), b.id, 0.5),
-          () => addPoints(table, a.id, 1),
+          () =>
+            pipe(
+              table,
+              (t) => addPoints(t, a.id, 0),
+              (t) => addPoints(t, b.id, 1),
+            ),
+          () =>
+            pipe(
+              table,
+              (t) => addPoints(t, a.id, 0.5),
+              (t) => addPoints(t, b.id, 0.5),
+            ),
+          () =>
+            pipe(
+              table,
+              (t) => addPoints(t, a.id, 1),
+              (t) => addPoints(t, b.id, 0),
+            ),
         ),
       ),
     ),

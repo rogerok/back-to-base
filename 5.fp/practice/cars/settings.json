@@ -5,6 +5,6 @@
   "allowedEngines": ["diesel", "petrol", "electric"],
   "allowedBrands": ["BMW", "Audi", "Ford"],
   "maxMileage": 100000,
-  "numRounds": 10,
-  "carsInRound": 5
+  "numRounds": 2,
+  "carsInRound": 4
 }
