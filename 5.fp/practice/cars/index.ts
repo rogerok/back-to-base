@@ -1,9 +1,13 @@
+import * as Array from "fp-ts/lib/Array.js";
 import * as Console from "fp-ts/lib/Console.js";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as J from "fp-ts/lib/Json.js";
+import * as RA from "fp-ts/lib/ReadonlyArray.js";
+import * as TE from "fp-ts/lib/TaskEither.js";
+import * as RTE from "fp-ts/ReaderTaskEither";
+import * as t from "io-ts";
 import * as PathReporter from "io-ts/lib/PathReporter.js";
-//
 // // .... impl
 //
 // const run = pipe(
@@ -26,6 +30,7 @@ import * as PathReporter from "io-ts/lib/PathReporter.js";
 //   await main();
 // })();
 import readline from "node:readline";
+import { round } from "remeda";
 
 import { JsonParseError, SettingsSchema, TRounds, TSettings } from "./model.ts";
 import { buildScoreTable, createQuestion, generateRounds, readFile } from "./utils.ts";
@@ -56,23 +61,42 @@ export const loadSettings = (): TSettings =>
     }),
   );
 
-const generateRound = (settings: TSettings) => pipe(settings, generateRounds);
-
-const runGame = (rl: readline.Interface) => (rounds: TRounds[]) => {
-  const answers = [];
-
-  rounds.forEach((round) => {
-    console.log(buildScoreTable(round));
-
-    rl.question(createQuestion(round), (answer) => {
-      answers.push(answer);
-    });
-  });
-
-  return null;
+type Env = {
+  rl: readline.Interface;
 };
 
-const run = (rl: readline.Interface) => pipe(loadSettings(), generateRound, runGame(rl));
+const generateRound = (settings: TSettings) => pipe(settings, generateRounds);
+
+const askQuestion = (car: TRounds): RTE.ReaderTaskEither<Env, Error, string> =>
+  pipe(
+    RTE.ask<Env>(),
+    RTE.flatMapTaskEither(({ rl }) =>
+      TE.tryCatch(
+        () =>
+          new Promise<string>((resolve) => {
+            rl.question(createQuestion(car), resolve);
+          }),
+        () => new Error("question failed"),
+      ),
+    ),
+  );
+
+const runGame = (rounds: TRounds[]): RTE.ReaderTaskEither<Env, Error, readonly string[]> =>
+  pipe(
+    rounds,
+    RA.traverse(RTE.ApplicativeSeq)((round) =>
+      pipe(
+        RTE.fromIO(() => {
+          console.log(buildScoreTable(round));
+        }),
+        RTE.flatMap(() => askQuestion(round)),
+      ),
+    ),
+  );
+
+const run = (rl: readline.Interface) => {
+  pipe(loadSettings(), generateRound, runGame)({ rl: rl });
+};
 
 (async () => {
   const rl = readline.createInterface({
