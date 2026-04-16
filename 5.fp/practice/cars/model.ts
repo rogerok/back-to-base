@@ -1,4 +1,5 @@
 import * as t from "io-ts";
+import readline from "node:readline";
 
 import { isPositive, maxMileage, maxYear, minYear } from "./utils.ts";
 
@@ -36,29 +37,14 @@ export const CarSchema = t.type({
 
 export type TSettings = t.TypeOf<typeof SettingsSchema>;
 export type TCar = t.TypeOf<typeof CarSchema>;
-export type TRankedCar = {
-  car: TCar;
-  points: number;
-};
+
 export type TCarPair = [TCar, TCar];
 
 export type ScoreTable = Record<number, number>;
 
-const { brand: __, engine: _, ...carBaseProps } = CarSchema.props;
-export const CarWithCoefSchema = t.type({
-  ...carBaseProps,
-  brandCoef: t.number,
-  engineCoef: t.number,
-});
-
-export type TCarWithCoef = t.TypeOf<typeof CarWithCoefSchema>;
-
 export const RoundSchema = t.array(CarSchema);
 
 export type TRounds = t.TypeOf<typeof RoundSchema>;
-
-export type TBrand = t.TypeOf<typeof Brand>;
-export type TEngine = t.TypeOf<typeof Engine>;
 
 export type JsonParseError = {
   error: Error;
@@ -77,4 +63,8 @@ export const priceEngineCoefficient: TPriceEngineCoefficient = {
   [Diesel.value]: 2,
   [Electric.value]: 3,
   [Petrol.value]: 1,
+};
+
+export type Env = {
+  rl: readline.Interface;
 };

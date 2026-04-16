@@ -1,24 +1,28 @@
 import * as A from "fp-ts/lib/Array.js";
 import * as boolean from "fp-ts/lib/boolean.js";
 import * as E from "fp-ts/lib/Either.js";
-import { pipe } from "fp-ts/lib/function.js";
+import { pipe } from "fp-ts/lib/function";
 import { concatAll } from "fp-ts/lib/Monoid.js";
+import * as NEA from "fp-ts/lib/NonEmptyArray.js";
 import * as N from "fp-ts/lib/number.js";
 import * as Option from "fp-ts/lib/Option.js";
+import * as O from "fp-ts/lib/Option.js";
 import * as Ord from "fp-ts/lib/Ord.js";
 import * as Ordering from "fp-ts/lib/Ordering.js";
 import * as R from "fp-ts/lib/Random.js";
+import * as RTE from "fp-ts/lib/ReaderTaskEither";
 import * as RA from "fp-ts/lib/ReadonlyArray.js";
 import * as Record from "fp-ts/lib/Record.js";
+import * as TE from "fp-ts/lib/TaskEither";
 import { readFileSync } from "node:fs";
 
 import {
+  Env,
   priceBrandCoefficient,
   priceEngineCoefficient,
   ScoreTable,
   TCar,
   TCarPair,
-  TCarWithCoef,
   TRounds,
   TSettings,
 } from "./model.ts";
@@ -63,12 +67,6 @@ export const createQuestion = (round: TRounds) =>
 export const getBrandCoef = (car: TCar) => priceBrandCoefficient[car.brand];
 export const getEngineCoef = (car: TCar) => priceEngineCoefficient[car.engine];
 const getCoef = (car: TCar) => N.SemigroupSum.concat(getBrandCoef(car), getEngineCoef(car));
-
-export const mapCar = (car: TCar): TCarWithCoef => ({
-  ...car,
-  brandCoef: getBrandCoef(car),
-  engineCoef: getEngineCoef(car),
-});
 
 const ordByYear: Ord.Ord<TCar> = pipe(
   N.Ord,
@@ -157,3 +155,49 @@ export const buildScoreTable = (cars: TCar[]) =>
 
 export const readFile = (path: string, encoding: BufferEncoding) =>
   E.tryCatch(() => readFileSync(path, { encoding }), E.toError);
+
+export const ordByScore: Ord.Ord<[string, number]> = pipe(
+  N.Ord,
+  Ord.contramap(([_, score]: [string, number]) => score),
+);
+
+export const findWinner = (table: ScoreTable): string =>
+  pipe(
+    table,
+    Record.toEntries,
+    NEA.fromArray,
+    O.map(NEA.max(ordByScore)),
+    O.map(([id]) => id),
+    O.getOrElse(() => ""),
+  );
+
+export const deriveCorrectAnswer = (table: ScoreTable, roundLength: number): string => {
+  const scores = pipe(
+    table,
+    Record.toEntries,
+    RA.map(([_, score]) => score),
+  );
+
+  return pipe(
+    scores,
+    RA.every((s) => s === scores[0]),
+    (isEqual) => (isEqual ? N.SemigroupSum.concat(roundLength, 1).toString() : findWinner(table)),
+  );
+};
+export const generateRound = (settings: TSettings) => pipe(settings, generateRounds);
+
+export const askQuestion = (car: TRounds): RTE.ReaderTaskEither<Env, Error, string> =>
+  pipe(
+    RTE.ask<Env>(),
+    RTE.flatMapTaskEither(({ rl }) =>
+      TE.tryCatch(
+        () =>
+          new Promise<string>((resolve) => {
+            rl.question(createQuestion(car), (answer) => {
+              resolve(answer);
+            });
+          }),
+        () => new Error("question failed"),
+      ),
+    ),
+  );

@@ -1,40 +1,20 @@
-import { boolean } from "fp-ts";
-import * as Array from "fp-ts/lib/Array.js";
 import * as Console from "fp-ts/lib/Console.js";
 import * as E from "fp-ts/lib/Either.js";
 import { pipe } from "fp-ts/lib/function.js";
 import * as J from "fp-ts/lib/Json.js";
 import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import * as RA from "fp-ts/lib/ReadonlyArray.js";
-import * as Record from "fp-ts/lib/Record.js";
-import * as TE from "fp-ts/lib/TaskEither.js";
-import * as t from "io-ts";
 import * as PathReporter from "io-ts/lib/PathReporter.js";
-// // .... impl
-//
-// const run = pipe(
-//   loadSettings,
-//   IOE.flatMap(generateRounds),
-//   RTE.fromIOEither,
-//   RTE.flatMap(runGame),
-//   RTE.map(calculateScore),
-//   RTE.flatMap(finishGame),
-// );
-//
-// (async () => {
-//   const rl = readline.createInterface({
-//     input: process.stdin,
-//     output: process.stdout,
-//   });
-//
-//   const main = run(rl);
-//
-//   await main();
-// })();
 import readline from "node:readline";
 
-import { JsonParseError, ScoreTable, SettingsSchema, TRounds, TSettings } from "./model.ts";
-import { buildScoreTable, createQuestion, generateRounds, readFile } from "./utils.ts";
+import { Env, JsonParseError, SettingsSchema, TRounds, TSettings } from "./model.ts";
+import {
+  askQuestion,
+  buildScoreTable,
+  deriveCorrectAnswer,
+  generateRound,
+  readFile,
+} from "./utils.ts";
 
 const loadSettingsEither = pipe(
   readFile("./settings.json", "utf8"),
@@ -62,81 +42,38 @@ export const loadSettings = (): TSettings =>
     }),
   );
 
-type Env = {
-  rl: readline.Interface;
-};
-
-const generateRound = (settings: TSettings) => pipe(settings, generateRounds);
-
-const askQuestion = (car: TRounds): RTE.ReaderTaskEither<Env, Error, string> =>
-  pipe(
-    RTE.ask<Env>(),
-    RTE.flatMapTaskEither(({ rl }) =>
-      TE.tryCatch(
-        () =>
-          new Promise<string>((resolve) => {
-            // TODO: add validation
-            rl.question(createQuestion(car), (answer) => {
-              resolve(answer);
-            });
-          }),
-        () => new Error("question failed"),
-      ),
-    ),
-  );
-
-// const calculateScore = (rounds: TRounds[], answers: readonly string[]) => {
-//   pipe(
-//     rounds,
-//     RA.map(buildScoreTable),
-//     RA.map((table) =>
-//       pipe(
-//         table,
-//         Record.toEntries,
-//         RA.map(([_, score]) => score),
-//       ),
-//     ),
-//
-//     RA.map((scores) =>
-//       pipe(
-//         scores,
-//         RA.every((s) => s === scores[0]),
-//       ),
-//     ),
-//   );
-// };
-
-const calculateScore = (rounds: TRounds[], answers: readonly string[]) => {
+const calculateScore = (rounds: TRounds[], answers: readonly string[]): number =>
   pipe(
     rounds,
-    RA.mapWithIndex((i, round) => {
-      const answer = answers[i];
-      const table = buildScoreTable(round);
-    }),
+    RA.mapWithIndex((i, round) => ({
+      answer: answers[i],
+      correct: deriveCorrectAnswer(buildScoreTable(round), round.length),
+    })),
+    RA.filter(({ answer, correct }) => answer === correct),
+    RA.size,
   );
-};
 
 const runGame = (rounds: TRounds[]): RTE.ReaderTaskEither<Env, Error, readonly string[]> =>
   pipe(rounds, RA.traverse(RTE.ApplicativeSeq)(askQuestion));
+
+const finishGame = (score: number): RTE.ReaderTaskEither<Env, Error, void> =>
+  RTE.fromIO(Console.log(`Your score: ${score.toString()}`));
 
 const run = (rl: readline.Interface) =>
   pipe(loadSettings(), generateRound, (rounds) =>
     pipe(
       runGame(rounds),
-      RTE.map((answers) => {
-        calculateScore(rounds, answers);
-      }),
+      RTE.map((answers) => calculateScore(rounds, answers)),
+      RTE.flatMap(finishGame),
     ),
-  )({ rl: rl });
+  )({ rl });
 
-(async () => {
+void (async () => {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
 
-  const main = run(rl);
-
-  await main();
+  await run(rl)();
   rl.close();
 })();
