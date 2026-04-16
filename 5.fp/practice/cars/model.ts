@@ -1,7 +1,7 @@
 import * as t from "io-ts";
 import readline from "node:readline";
 
-import { isPositive, maxMileage, maxYear, minYear } from "./utils.ts";
+import { isPositive, maxMileage, maxYear, minYear } from "./predicates.ts";
 
 export const BMW = t.literal("BMW");
 export const Audi = t.literal("Audi");
