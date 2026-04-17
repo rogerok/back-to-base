@@ -1,0 +1,10 @@
+{
+  "minYear": 2010,
+  "maxYear": 2019,
+  "mileageDifference": 100,
+  "allowedEngines": ["diesel", "petrol", "electric"],
+  "allowedBrands": ["BMW", "Audi", "Ford"],
+  "maxMileage": 100000,
+  "numRounds": 2,
+  "carsInRound": 4
+}

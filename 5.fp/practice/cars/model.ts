@@ -16,15 +16,17 @@ export const Engine = t.union([Diesel, Petrol, Electric]);
 export const BrandsTuple = t.tuple([BMW, Audi, Ford]);
 export const EnginesTuple = t.tuple([Diesel, Petrol, Electric]);
 
+const getPositiveNumberSchema = (name: string) => t.refinement(t.number, isPositive, name);
+
 export const SettingsSchema = t.type({
   allowedBrands: BrandsTuple,
   allowedEngines: EnginesTuple,
   carsInRound: t.number,
   maxMileage: t.refinement(t.number, maxMileage, "MaxMileage"),
   maxYear: t.refinement(t.number, maxYear, "MaxYear"),
-  mileageDifference: t.refinement(t.number, isPositive, "MileageDifference"),
+  mileageDifference: getPositiveNumberSchema("MileageDifference"),
   minYear: t.refinement(t.number, minYear),
-  numRounds: t.number,
+  numRounds: getPositiveNumberSchema("MinRounds"),
 });
 
 export const CarSchema = t.type({
