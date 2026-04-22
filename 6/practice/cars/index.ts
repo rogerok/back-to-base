@@ -1,17 +1,22 @@
+import { sequenceS } from "fp-ts/Apply";
 import { flow } from "fp-ts/function";
+import * as Console from "fp-ts/lib/Console";
 import * as Eq from "fp-ts/lib/Eq.js";
 import { pipe } from "fp-ts/lib/function.js";
-import * as IOE from "fp-ts/lib/IOEither.js";
 import * as IO from "fp-ts/lib/IO.js";
+import * as IOE from "fp-ts/lib/IOEither.js";
 import * as J from "fp-ts/lib/Json.js";
 import { concatAll } from "fp-ts/lib/Monoid.js";
+import * as NonEmptyArray from "fp-ts/lib/NonEmptyArray.js";
 import * as N from "fp-ts/lib/number.js";
 import * as Ord from "fp-ts/lib/Ord.js";
+import * as R from "fp-ts/lib/Random";
+import * as RTE from "fp-ts/lib/ReaderTaskEither.js";
 import * as t from "io-ts";
 import * as tt from "io-ts-types";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { string } from "zod";
+import readline from "node:readline";
 
 const settingsPath = path.join(__dirname, "settings.json");
 
@@ -44,6 +49,8 @@ const Round = t.type({
   car1: Car,
   car2: Car,
 });
+
+type TRound = t.TypeOf<typeof Round>;
 
 enum CarBrandRate {
   Ford = 1,
@@ -116,9 +123,108 @@ const readSettings = IOE.tryCatch(
 const loadSettings = pipe(
   readSettings,
   IOE.map(J.parse),
+  // eslint-disable-next-line @typescript-eslint/unbound-method
   IOE.flatMap(flow(Settings.decode, IOE.fromEither)),
 );
 
-const generateCar = (settings: TSettings): IO.IO<TRound> => (
+const generateCar = (settings: TSettings): IO.IO<TCar> =>
+  pipe(
+    {
+      brand: R.randomElem(settings.allowedBrands),
+      engine: R.randomElem(settings.allowedEngines),
+      mileage: R.randomInt(0, settings.maxMileage),
+      year: R.randomInt(settings.minYear, settings.maxYear),
+    },
+    sequenceS(IO.Apply),
+  );
 
-)
+const generateRound = (settings: TSettings): IO.IO<TRound> =>
+  pipe(
+    IO.Do,
+    IO.bind("car1", () => generateCar(settings)),
+    IO.bind("car2", () => generateCar(settings)),
+    IO.bind("answer", ({ car1, car2 }) =>
+      pipe(
+        getMoreExpensiveCar(car1, car2),
+        IO.of,
+        IO.map((answer) => (answer === car1 ? "first" : "second")),
+      ),
+    ),
+  );
+
+const generateRounds = (settings: TSettings) =>
+  pipe(
+    NonEmptyArray.range(0, settings.numRounds - 1),
+    NonEmptyArray.map(generateRound(settings)),
+    IOE.of,
+  );
+
+const printRound = (round: TRound): IO.IO<void> =>
+  Console.log(
+    `Which car is more expensive?\n1) ${JSON.stringify(
+      round.car1,
+    )}\n2) ${JSON.stringify(round.car2)}`,
+  );
+
+const askAnswer = () =>
+  pipe(
+    RTE.ask<readline.Interface>(),
+    RTE.flatMap((rl) =>
+      RTE.fromTask(
+        () =>
+          new Promise<string>((resolve) => {
+            rl.question("", resolve);
+          }),
+      ),
+    ),
+    RTE.map((answer) => answer.trim()),
+  );
+
+const readAnswer = () =>
+  pipe(
+    RTE.fromIO(() => Console.log("Enter your answer: ")),
+    RTE.flatMap(askAnswer),
+  );
+
+const mapUserAnswer = (answer: string) =>
+  (
+    ({
+      1: "first",
+      2: "second",
+    }) as const
+  )[answer];
+
+const playRound = (round: TRound) =>
+  pipe(
+    round,
+    printRound,
+    RTE.fromIO,
+    RTE.flatMap(readAnswer),
+    RTE.map(mapUserAnswer),
+    RTE.map((answer) => (answer === round.answer ? 1 : 0)),
+  );
+
+const runGame = flow(NonEmptyArray.map(playRound), RTE.sequenceSeqArray);
+
+const finishGame = (score: number) =>
+  pipe(
+    RTE.ask<readline.Interface>(),
+    RTE.flatMap((rl) =>
+      RTE.fromIO(() => {
+        rl.close();
+      }),
+    ),
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+    RTE.flatMap(flow(() => Console.log(`Your score is ${score}`), RTE.fromIO)),
+  );
+
+const calculateScore = concatAll(N.MonoidSum);
+
+const program = pipe(
+  loadSettings,
+  IOE.flatMap(generateRounds),
+  RTE.fromIOEither,
+  RTE.flatMap(runGame),
+  RTE.map(calculateScore),
+  RTE.flatMap(finishGame),
+);
