@@ -18,21 +18,6 @@ const users: User[] = [
   { id: 3, name: "Charlie" },
 ];
 
-// const getUserCity = (id: number) =>
-//   pipe(
-//     users,
-//     A.findFirst((u) => u.id === id),
-//     O.fold(
-//       () => null,
-//       (u) => u.address,
-//     ),
-//     O.fromNullable,
-//     O.fold(
-//       () => "unknown",
-//       (a) => a.city,
-//     ),
-//   );
-
 const getUserCity = (id: number) =>
   pipe(
     users,
