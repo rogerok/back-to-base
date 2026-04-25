@@ -47,3 +47,37 @@ export const findOrder = (id: number) =>
       (p) => p,
     ),
   );
+
+export const validateOrderStatus = (order: Order): AppError | Order =>
+  pipe(
+    order.status,
+    E.fromPredicate(
+      (s) => s !== "cancelled",
+      (): AppError => ({ message: "Cannot process a cancelled order", type: "ValidationError" }),
+    ),
+    E.foldW(
+      (e) => e,
+      () => order,
+    ),
+  );
+
+type R = AppError | { discount: number; order: Order };
+
+export const applyDiscount = (order: Order): R =>
+  pipe(
+    order,
+    E.fromPredicate(
+      (o) => o.amount < 100,
+      (): AppError => ({
+        message: "Order amount too low for discount",
+        type: "ValidationError",
+      }),
+    ),
+    E.foldW(
+      (e) => e,
+      (o) => ({
+        discount: o.amount * 0.1,
+        order: o,
+      }),
+    ),
+  );

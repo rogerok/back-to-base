@@ -3,47 +3,47 @@
 // Each step can fail — compose them without nested if/else
 
 type AppError =
-  | { type: 'ParseError'; message: string }
-  | { type: 'ValidationError'; message: string }
-  | { type: 'NotFoundError'; message: string };
+  | { message: string; type: 'NotFoundError'; }
+  | { message: string; type: 'ParseError'; }
+  | { message: string; type: 'ValidationError'; };
 
 interface Order {
-  id: number;
-  userId: number;
   amount: number;
-  status: 'pending' | 'paid' | 'cancelled';
+  id: number;
+  status: 'cancelled' | 'paid' | 'pending';
+  userId: number;
 }
 
 const orders: Order[] = [
-  { id: 1, userId: 10, amount: 250, status: 'paid' },
-  { id: 2, userId: 10, amount: 80,  status: 'pending' },
-  { id: 3, userId: 11, amount: 410, status: 'cancelled' },
+  { amount: 250, id: 1, status: 'paid', userId: 10 },
+  { amount: 80, id: 2, status: 'pending',  userId: 10 },
+  { amount: 410, id: 3, status: 'cancelled', userId: 11 },
 ];
 
-function parseOrderId(raw: string): number | AppError {
+function parseOrderId(raw: string): AppError | number {
   const id = parseInt(raw, 10);
-  if (isNaN(id)) return { type: 'ParseError', message: `"${raw}" is not a valid ID` };
+  if (isNaN(id)) return { message: `"${raw}" is not a valid ID`, type: 'ParseError' };
   return id;
 }
 
-function findOrder(id: number): Order | AppError {
+function findOrder(id: number): AppError | Order {
   const order = orders.find(o => o.id === id);
-  if (!order) return { type: 'NotFoundError', message: `Order ${id} not found` };
+  if (!order) return { message: `Order ${id} not found`, type: 'NotFoundError' };
   return order;
 }
 
-function validateOrderStatus(order: Order): Order | AppError {
+function validateOrderStatus(order: Order): AppError | Order {
   if (order.status === 'cancelled') {
-    return { type: 'ValidationError', message: 'Cannot process a cancelled order' };
+    return { message: 'Cannot process a cancelled order', type: 'ValidationError' };
   }
   return order;
 }
 
-function applyDiscount(order: Order): { order: Order; discount: number } | AppError {
+function applyDiscount(order: Order): AppError | { discount: number; order: Order; } {
   if (order.amount < 100) {
-    return { type: 'ValidationError', message: 'Order amount too low for discount' };
+    return { message: 'Order amount too low for discount', type: 'ValidationError' };
   }
-  return { order, discount: order.amount * 0.1 };
+  return { discount: order.amount * 0.1, order };
 }
 
 function processOrder(rawId: string): string {
