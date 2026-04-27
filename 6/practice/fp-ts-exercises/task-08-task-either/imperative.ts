@@ -3,21 +3,21 @@
 // Replace async/await + try/catch with TaskEither pipelines
 
 interface Post {
-  id: number;
-  userId: number;
-  title: string;
   body: string;
+  id: number;
+  title: string;
+  userId: number;
 }
 
 interface UserProfile {
+  email: string;
   id: number;
   name: string;
-  email: string;
 }
 
 interface EnrichedPost {
-  post: Post;
   author: UserProfile;
+  post: Post;
 }
 
 // Simulated async API calls
@@ -37,7 +37,7 @@ async function getEnrichedPost(postId: number): Promise<EnrichedPost | string> {
   try {
     const post = await fetchPost(postId);
     const author = await fetchUser(post.userId);
-    return { post, author };
+    return { author, post };
   } catch (e) {
     return `Failed: ${(e as Error).message}`;
   }
