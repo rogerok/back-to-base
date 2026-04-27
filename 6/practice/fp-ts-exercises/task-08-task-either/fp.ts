@@ -8,7 +8,6 @@ import * as TE from "fp-ts/lib/TaskEither.js";
 import * as t from "io-ts";
 import * as PathReporter from "io-ts/lib/PathReporter";
 
-// Если хочешь запрещать лишние поля, используй t.exact(...)
 export const PostC = t.exact(
   t.type({
     body: t.string,
@@ -40,14 +39,7 @@ type DecodeError = { _tag: "DecodeError"; message: string };
 
 type AppError = DecodeError | HttpError | NetworkError | ParseError;
 
-// TS-типы выводятся из кодеков
-export type Post = t.TypeOf<typeof PostC>;
-export type UserProfile = t.TypeOf<typeof UserProfileC>;
-export type EnrichedPost = t.TypeOf<typeof EnrichedPostC>;
-
 const toMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e));
-
-// Simulated async API calls
 
 const fetchJson = (url: string) =>
   pipe(

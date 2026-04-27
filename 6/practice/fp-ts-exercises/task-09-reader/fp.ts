@@ -4,10 +4,6 @@ import * as IO from "fp-ts/lib/IO.js";
 import * as R from "fp-ts/lib/Reader.js";
 import * as ReaderIO from "fp-ts/lib/ReaderIO.js";
 
-// Your solution here
-// Hint: Reader<Env, A> is just (env: Env) => A
-// Use R.map, R.chain, R.ask, R.asks to compose readers
-
 interface AppConfig {
   apiKey: string;
   apiUrl: string;
@@ -44,4 +40,22 @@ const logRequest = (method: string, url: string): ReaderIO.ReaderIO<AppEnv, void
     ReaderIO.chainIOK((logger) => logger.log(`[${method}] ${url}`)),
   );
 
-logRequest("get", "he")(env)();
+const buildUrl = (path: string): R.Reader<AppEnv, string> =>
+  pipe(
+    R.asks<AppEnv, AppConfig>((env) => env.config),
+    R.map((config) => `${config.apiUrl}/${path}`),
+  );
+
+const makeRequest = (method: string, path: string): ReaderIO.ReaderIO<AppEnv, string> =>
+  pipe(
+    ReaderIO.fromReader(buildUrl(path)),
+    ReaderIO.chainFirst((url) => logRequest(method, url)),
+    ReaderIO.chain((url) =>
+      pipe(
+        ReaderIO.fromReader(buildHeaders()),
+        ReaderIO.map(
+          (headers) => `Request: ${method} ${url} with headers ${JSON.stringify(headers)}`,
+        ),
+      ),
+    ),
+  );
