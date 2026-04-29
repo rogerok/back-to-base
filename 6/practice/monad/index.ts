@@ -1,5 +1,4 @@
 // === 1 Task DSL ===
-import { f } from "@vitest/mocker/dist/types.d-B8CCKmHt";
 
 export type IO<A> = IOPure<A> | IOReadLine<A> | IOWriteLine<A>;
 
@@ -58,14 +57,18 @@ export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
       return { ...readLine, next: (x) => bind(io.next(x), f) };
 
     case "writeLine":
-      return { next: bind<A, B>(io.next, f), tag: "writeLine", text: io.text };
+      return { next: bind(io.next, f), tag: "writeLine", text: io.text };
   }
 };
 
-// export const map = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => bind(io, (x) => pure(f(x)))
+export const map = <A, B>(io: IO<A>, f: (a: A) => B): IO<B> => bind(io, (x) => pure(f(x)));
 
-// console.log(map())
+export const andThen = <A, B>(first: IO<A>, second: IO<B>): IO<B> => bind(first, () => second);
 
-// export const map2 = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => bind(f(io.value), (x) => f(x));
+const askName = andThen(writeLine("What is your name?"), readLine);
+const writeName = (name: string) => writeLine(`Hello, ${name}! How old are you?`);
+const writeAge = (name: string, age: string) => writeLine(`Wow, ${name}, ${age} is a great age!`);
 
-// export const then = <A, B>(first: IO<A>, second: IO<B>): IO<B> => second;
+export const myProgram = bind(askName, (name) =>
+  bind(andThen(writeName(name), readLine), (age) => writeAge(name, age)),
+);

@@ -1,8 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { bind, map, pure, readLine, andThen, writeLine } from "../index";
 
-import { bind, map, pure, readLine, then, writeLine } from "../index";
-
-describe("Task 02: bind, map, and then", () => {
+describe("Task 02: bind, map, and andThen", () => {
   it("bind substitutes a pure value into the continuation", () => {
     expect(bind(pure(2), (value) => pure(value + 3))).toEqual({
       tag: "pure",
@@ -50,8 +48,8 @@ describe("Task 02: bind, map, and then", () => {
     });
   });
 
-  it("then discards the first result and runs the second program afterwards", () => {
-    const program = then(writeLine("first"), writeLine("second"));
+  it("andThen discards the first result and runs the second program afterwards", () => {
+    const program = andThen(writeLine("first"), writeLine("second"));
 
     expect(program).toMatchObject({
       tag: "writeLine",
@@ -59,7 +57,7 @@ describe("Task 02: bind, map, and then", () => {
     });
 
     if (program.tag !== "writeLine") {
-      throw new Error("Expected then(writeLine, ...) to start with the first program");
+      throw new Error("Expected andThen(writeLine, ...) to start with the first program");
     }
 
     expect(program.next).toMatchObject({
