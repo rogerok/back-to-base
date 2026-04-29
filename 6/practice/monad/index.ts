@@ -1,4 +1,6 @@
 // === 1 Task DSL ===
+import { f } from "@vitest/mocker/dist/types.d-B8CCKmHt";
+
 export type IO<A> = IOPure<A> | IOReadLine<A> | IOWriteLine<A>;
 
 export type IOPure<A> = {
@@ -59,3 +61,11 @@ export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
       return { next: bind<A, B>(io.next, f), tag: "writeLine", text: io.text };
   }
 };
+
+// export const map = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => bind(io, (x) => pure(f(x)))
+
+// console.log(map())
+
+// export const map2 = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => bind(f(io.value), (x) => f(x));
+
+// export const then = <A, B>(first: IO<A>, second: IO<B>): IO<B> => second;
