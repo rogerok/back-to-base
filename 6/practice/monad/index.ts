@@ -2,7 +2,11 @@ import { stdin as input, stdout as output } from "node:process";
 // === 1 Task DSL ===
 import readline from "node:readline/promises";
 
-export type IO<A> = IOPure<A> | IOReadLine<A> | IOWriteLine<A>;
+export type IO<A> = Fetch<A> | IOPure<A> | IOReadLine<A> | IOWriteLine<A>;
+
+const exhaustive = (x: never): never => {
+  throw new Error(`Unexpected value: ${x}`);
+};
 
 export type IOPure<A> = {
   tag: "pure";
@@ -18,6 +22,13 @@ export type IOWriteLine<A> = {
   next: IO<A>;
   tag: "writeLine";
   text: string;
+};
+
+export type Fetch<A> = {
+  tag: "fetch";
+  url: string;
+  options?: RequestInit;
+  next: (body: string) => IO<A>;
 };
 
 export const greeting: IO<void> = {
@@ -48,6 +59,15 @@ export const writeLine = (text: string): IO<void> => ({
   text,
 });
 
+export const fetchUrl = (url: string, options?: RequestInit): IO<string> => ({
+  next: pure,
+  options,
+  tag: "fetch",
+  url,
+});
+
+export const fetchProgram = () => 1;
+
 // === 3 Task bind ====
 
 export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
@@ -60,6 +80,17 @@ export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
 
     case "writeLine":
       return { next: bind(io.next, f), tag: "writeLine", text: io.text };
+
+    case "fetch":
+      return {
+        next: (body) => bind(io.next(body), f),
+        options: io.options,
+        tag: "fetch",
+        url: io.url,
+      };
+
+    default:
+      return exhaustive(io);
   }
 };
 
@@ -67,12 +98,26 @@ export const map = <A, B>(io: IO<A>, f: (a: A) => B): IO<B> => bind(io, (x) => p
 
 export const andThen = <A, B>(first: IO<A>, second: IO<B>): IO<B> => bind(first, () => second);
 
-const askName = andThen(writeLine("What is your name?"), readLine);
-const writeName = (name: string) => writeLine(`Hello, ${name}! How old are you?`);
-const writeAge = (name: string, age: string) => writeLine(`Wow, ${name}, ${age} is a great age!`);
+// const askName = andThen(writeLine("What is your name?"), readLine);
+// const writeName = (name: string) => writeLine(`Hello, ${name}! How old are you?`);
+// const writeAge = (name: string, age: string) => writeLine(`Wow, ${name}, ${age} is a great age!`);
+//
+// export const myProgram = bind(askName, (name) =>
+//   bind(andThen(writeName(name), readLine), (age) => writeAge(name, age)),
+// );
 
-export const myProgram = bind(askName, (name) =>
-  bind(andThen(writeName(name), readLine), (age) => writeAge(name, age)),
+const myProgram: IO<void> = bind(writeLine("What is your name?"), () =>
+  bind(readLine, (name) =>
+    bind(writeLine(`Hello, ${name}! How old are you?`), () =>
+      bind(readLine, (age) =>
+        bind(writeLine("Loading greeting of the day..."), () =>
+          bind(fetchUrl("https://httpbin.org/uuid"), (body) =>
+            writeLine(`Wow, ${name}, ${age}! Today's lucky token: ${body}`),
+          ),
+        ),
+      ),
+    ),
+  ),
 );
 
 // === 4.2 sequence ===
@@ -85,6 +130,7 @@ export const sequence = <A>(a: IO<A>[]): IO<Array<A>> =>
 // === 5 runIO ===
 
 export interface World {
+  fetch: (url: string, options?: RequestInit) => Promise<string>;
   readLine: () => Promise<string>;
   writeLine: (s: string) => Promise<void>;
 }
@@ -107,6 +153,13 @@ export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
       case "writeLine":
         await world.writeLine(current.text);
         current = current.next;
+        break;
+
+      case "fetch": {
+        const res = await world.fetch(current.url, current.options);
+        current = current.next(res);
+        break;
+      }
     }
   }
 };
@@ -117,18 +170,20 @@ void (async () => {
   const rl = readline.createInterface({ input, output });
 
   const productionNodeWorld: World = {
+    fetch: async (url, options) => (await fetch(url, options)).text(),
     readLine: () => rl.question(""),
     writeLine: async (s: string) => {
       console.log(s);
     },
   };
 
-  // await runIO(myProgram, productionNodeWorld);
-  // rl.close();
+  await runIO(myProgram, productionNodeWorld);
+  rl.close();
 })();
 
 void (async () => {
   const productionBrowserWorld: World = {
+    fetch: async (url, options) => (await fetch(url, options)).text(),
     readLine: async () => prompt("") ?? "",
     writeLine: async (s: string) => {
       console.log(s);
@@ -140,6 +195,7 @@ void (async () => {
 
 export const makeTestWorld = (
   input: string[],
+  fetchMock: Record<string, string>,
 ): {
   output: string[];
 } & World => {
@@ -147,10 +203,17 @@ export const makeTestWorld = (
   const strs = [...input];
 
   return {
+    fetch: async (url) => {
+      if (!(url in fetchMock)) {
+        throw new Error(`fetch to ${url} not mocked`);
+      }
+
+      return fetchMock[url];
+    },
     output,
     readLine: async () => {
       const last = strs.shift();
-      if (!last) {
+      if (typeof last === "undefined") {
         throw new Error("Mock can't be empty");
       }
       return last;
@@ -162,6 +225,10 @@ export const makeTestWorld = (
 };
 
 export const loggingWorld = (inner: World): World => ({
+  fetch: async (url, options) => {
+    console.log("fetch url: ", url, "with options", options);
+    return await inner.fetch(url, options);
+  },
   readLine: async () => {
     const result = await inner.readLine();
     console.log("readline: ", result);
