@@ -31,17 +31,10 @@ export type Fetch<A> = {
   next: (body: string) => IO<A>;
 };
 
-export const greeting: IO<void> = {
-  next: {
-    next: (name) => ({
-      next: { tag: "pure", value: undefined },
-      tag: "writeLine",
-      text: `Hello, ${name}!`,
-    }),
-    tag: "readLine",
-  },
-  tag: "writeLine",
-  text: "What is your name?",
+export type Sleep<A> = {
+  ms: number;
+  next: IO<A>;
+  tag: "sleep";
 };
 
 // === 2 Task constructors ===
@@ -65,8 +58,6 @@ export const fetchUrl = (url: string, options?: RequestInit): IO<string> => ({
   tag: "fetch",
   url,
 });
-
-export const fetchProgram = () => 1;
 
 // === 3 Task bind ====
 
@@ -106,7 +97,7 @@ export const andThen = <A, B>(first: IO<A>, second: IO<B>): IO<B> => bind(first,
 //   bind(andThen(writeName(name), readLine), (age) => writeAge(name, age)),
 // );
 
-const myProgram: IO<void> = bind(writeLine("What is your name?"), () =>
+const myProgram2: IO<void> = bind(writeLine("What is your name?"), () =>
   bind(readLine, (name) =>
     bind(writeLine(`Hello, ${name}! How old are you?`), () =>
       bind(readLine, (age) =>
@@ -179,7 +170,8 @@ void (async () => {
 
   await runIO(myProgram, productionNodeWorld);
   rl.close();
-})();
+});
+// ();
 
 void (async () => {
   const productionBrowserWorld: World = {
@@ -190,8 +182,9 @@ void (async () => {
     },
   };
 
-  // await runIO(myProgram, productionBrowserWorld);
-})();
+  await runIO(myProgram, productionBrowserWorld);
+});
+// ();
 
 export const makeTestWorld = (
   input: string[],
@@ -238,4 +231,36 @@ export const loggingWorld = (inner: World): World => ({
     console.log("write line: ", s);
     await inner.writeLine(s);
   },
+});
+
+// === 8 Do notation ===
+
+type IOGen<A> = Generator<IO<unknown>, A, unknown>;
+export const doIO = <A>(genFn: () => IOGen<A>): IO<A> => {
+  const gen = genFn();
+
+  const walk = (v?: unknown): IO<A> => {
+    const result = gen.next(v);
+
+    if (result.done) {
+      return pure(result.value);
+    }
+
+    return bind(result.value, walk);
+  };
+
+  return walk();
+};
+
+export function* _<A>(io: IO<A>): Generator<IO<A>, A, A> {
+  return yield io;
+}
+
+const myProgram = doIO(function* () {
+  yield* _(writeLine("What is your name?"));
+  const name = yield* _(readLine); // name: string, без каста!
+  yield* _(writeLine(`Hello, ${name}! How old are you?`));
+  const age = yield* _(readLine);
+  const body = yield* _(fetchUrl("https://httpbin.org/uuid"));
+  yield* _(writeLine(`Wow, ${name}, ${age}! Token: ${body}`));
 });
