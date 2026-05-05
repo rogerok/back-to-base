@@ -239,7 +239,7 @@ type IOGen<A> = Generator<IO<unknown>, A, unknown>;
 export const doIO = <A>(genFn: () => IOGen<A>): IO<A> => {
   const gen = genFn();
 
-  const walk = (v?: unknown): IO<A> => {
+  const walk = (v: unknown): IO<A> => {
     const result = gen.next(v);
 
     if (result.done) {
@@ -249,7 +249,7 @@ export const doIO = <A>(genFn: () => IOGen<A>): IO<A> => {
     return bind(result.value, walk);
   };
 
-  return walk();
+  return walk(undefined);
 };
 
 export function* _<A>(io: IO<A>): Generator<IO<A>, A, A> {
