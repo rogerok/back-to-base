@@ -1,12 +1,18 @@
-import { stdin as input, stdout as output } from "node:process";
-// === 1 Task DSL ===
-import readline from "node:readline/promises";
+export class YieldWrap<T> {
+  readonly _Y!: () => T;
+  constructor(readonly value: T) {}
+}
 
-import { _, doIO } from "./gen.ts";
+export type IOGen<A> = Generator<YieldWrap<IO<any>>, A>;
 
-export type IO<A> = Fetch<A> | IOPure<A> | IOReadLine<A> | IOWriteLine<A>;
+export type RawIO<A> = Fetch<A> | IOPure<A> | IOReadLine<A> | IOWriteLine<A>;
+
+export type IO<A> = {
+  [Symbol.iterator](): IOGen<A>;
+} & RawIO<A>;
 
 const exhaustive = (x: never): never => {
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   throw new Error(`Unexpected value: ${x}`);
 };
 
@@ -41,25 +47,37 @@ export type Sleep<A> = {
 
 // === 2 Task constructors ===
 
-export const pure = <A>(value: A): IO<A> => ({ tag: "pure", value: value });
+export const mkIO = <A>(io: RawIO<A>): IO<A> => {
+  Object.defineProperty(io, Symbol.iterator, {
+    value: function* () {
+      return (yield new YieldWrap(this)) as A;
+    },
+  });
 
-export const readLine: IO<string> = {
-  next: pure<string>,
-  tag: "readLine",
+  return io as IO<A>;
 };
 
-export const writeLine = (text: string): IO<void> => ({
-  next: pure(undefined),
-  tag: "writeLine",
-  text,
+export const pure = <A>(value: A): IO<A> => mkIO({ tag: "pure", value: value });
+
+export const readLine: IO<string> = mkIO({
+  next: pure,
+  tag: "readLine",
 });
 
-export const fetchUrl = (url: string, options?: RequestInit): IO<string> => ({
-  next: pure,
-  options,
-  tag: "fetch",
-  url,
-});
+export const writeLine = (text: string): IO<void> =>
+  mkIO({
+    next: pure(undefined),
+    tag: "writeLine",
+    text,
+  });
+
+export const fetchUrl = (url: string, options?: RequestInit): IO<string> =>
+  mkIO({
+    next: pure,
+    options,
+    tag: "fetch",
+    url,
+  });
 
 // === 3 Task bind ====
 
@@ -69,18 +87,18 @@ export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
       return f(io.value);
 
     case "readLine":
-      return { ...readLine, next: (x) => bind(io.next(x), f) };
+      return mkIO({ next: (x) => bind(io.next(x), f), tag: "readLine" });
 
     case "writeLine":
-      return { next: bind(io.next, f), tag: "writeLine", text: io.text };
+      return mkIO({ next: bind(io.next, f), tag: "writeLine", text: io.text });
 
     case "fetch":
-      return {
+      return mkIO({
         next: (body) => bind(io.next(body), f),
         options: io.options,
         tag: "fetch",
         url: io.url,
-      };
+      });
 
     default:
       return exhaustive(io);
@@ -109,6 +127,7 @@ export interface World {
 export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
   let current: IO<any> = io;
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   while (true) {
     switch (current.tag) {
       case "pure":
@@ -137,35 +156,6 @@ export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
 
 // === 6 different worlds ===
 
-void (async () => {
-  const rl = readline.createInterface({ input, output });
-
-  const productionNodeWorld: World = {
-    fetch: async (url, options) => (await fetch(url, options)).text(),
-    readLine: () => rl.question(""),
-    writeLine: async (s: string) => {
-      console.log(s);
-    },
-  };
-
-  await runIO(myProgram, productionNodeWorld);
-  rl.close();
-});
-// ();
-
-void (async () => {
-  const productionBrowserWorld: World = {
-    fetch: async (url, options) => (await fetch(url, options)).text(),
-    readLine: async () => prompt("") ?? "",
-    writeLine: async (s: string) => {
-      console.log(s);
-    },
-  };
-
-  await runIO(myProgram, productionBrowserWorld);
-});
-// ();
-
 export const makeTestWorld = (
   input: string[],
   fetchMock: Record<string, string>,
@@ -176,6 +166,7 @@ export const makeTestWorld = (
   const strs = [...input];
 
   return {
+    //  eslint-disable-next-line @typescript-eslint/require-await
     fetch: async (url) => {
       if (!(url in fetchMock)) {
         throw new Error(`fetch to ${url} not mocked`);
@@ -184,6 +175,7 @@ export const makeTestWorld = (
       return fetchMock[url];
     },
     output,
+    //  eslint-disable-next-line @typescript-eslint/require-await
     readLine: async () => {
       const last = strs.shift();
       if (typeof last === "undefined") {
@@ -191,6 +183,7 @@ export const makeTestWorld = (
       }
       return last;
     },
+    //  eslint-disable-next-line @typescript-eslint/require-await
     writeLine: async (s: string) => {
       output.push(s);
     },
@@ -213,11 +206,18 @@ export const loggingWorld = (inner: World): World => ({
   },
 });
 
-const myProgram = doIO(function* () {
-  yield* _(writeLine("What is your name?"));
-  const name = yield* _(readLine); // name: string, без каста!
-  yield* _(writeLine(`Hello, ${name}! How old are you?`));
-  const age = yield* _(readLine);
-  const body = yield* _(fetchUrl("https://httpbin.org/uuid"));
-  yield* _(writeLine(`Wow, ${name}, ${age}! Token: ${body}`));
-});
+export const doIO = <A>(genFn: () => IOGen<A>): IO<A> => {
+  const gen = genFn();
+
+  const walk = (v: unknown): IO<A> => {
+    const result = gen.next(v);
+
+    if (result.done) {
+      return pure(result.value);
+    }
+
+    return bind(result.value.value, walk);
+  };
+
+  return walk(undefined);
+};

@@ -10,13 +10,12 @@
 
 import { describe, expect, it } from "vitest";
 
-import { doIO } from "../gen.ts";
-import { bind, fetchUrl, makeTestWorld, pure, readLine, runIO, writeLine } from "../index";
+import { bind, doIO, fetchUrl, makeTestWorld, readLine, runIO, writeLine } from "../index";
 
-describe("E8.1: doIO — basic contract (naive yield implementation)", () => {
+describe("E8.3★★: doIO — basic contract", () => {
   it("doIO(fn) returns an IO value, not a function or thunk", () => {
     const io = doIO(function* () {
-      yield writeLine("x");
+      yield* writeLine("x");
     });
     expect(typeof io).toBe("object");
     expect(io).not.toBeNull();
@@ -25,19 +24,18 @@ describe("E8.1: doIO — basic contract (naive yield implementation)", () => {
 
   it("doIO result has a tag (is a proper IO node)", () => {
     const io = doIO(function* () {
-      yield writeLine("x");
+      yield* writeLine("x");
     });
     expect(io).toHaveProperty("tag");
   });
 
-  it("constructing doIO program has no side effects", () => {
-    let called = false;
+  it("constructing doIO program does not execute I/O side effects", async () => {
+    const world = makeTestWorld([], {});
     doIO(function* () {
-      called = true;
-      yield writeLine("oops");
+      yield* writeLine("oops");
     });
-    // The generator body should not execute at construction time
-    expect(called).toBe(false);
+    // writeLine should not be called until runIO
+    expect(world.output).toEqual([]);
   });
 });
 
