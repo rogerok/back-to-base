@@ -2,6 +2,8 @@ import { stdin as input, stdout as output } from "node:process";
 // === 1 Task DSL ===
 import readline from "node:readline/promises";
 
+import { _, doIO } from "./gen.ts";
+
 export type IO<A> = Fetch<A> | IOPure<A> | IOReadLine<A> | IOWriteLine<A>;
 
 const exhaustive = (x: never): never => {
@@ -88,28 +90,6 @@ export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
 export const map = <A, B>(io: IO<A>, f: (a: A) => B): IO<B> => bind(io, (x) => pure(f(x)));
 
 export const andThen = <A, B>(first: IO<A>, second: IO<B>): IO<B> => bind(first, () => second);
-
-// const askName = andThen(writeLine("What is your name?"), readLine);
-// const writeName = (name: string) => writeLine(`Hello, ${name}! How old are you?`);
-// const writeAge = (name: string, age: string) => writeLine(`Wow, ${name}, ${age} is a great age!`);
-//
-// export const myProgram = bind(askName, (name) =>
-//   bind(andThen(writeName(name), readLine), (age) => writeAge(name, age)),
-// );
-
-const myProgram2: IO<void> = bind(writeLine("What is your name?"), () =>
-  bind(readLine, (name) =>
-    bind(writeLine(`Hello, ${name}! How old are you?`), () =>
-      bind(readLine, (age) =>
-        bind(writeLine("Loading greeting of the day..."), () =>
-          bind(fetchUrl("https://httpbin.org/uuid"), (body) =>
-            writeLine(`Wow, ${name}, ${age}! Today's lucky token: ${body}`),
-          ),
-        ),
-      ),
-    ),
-  ),
-);
 
 // === 4.2 sequence ===
 export const sequence = <A>(a: IO<A>[]): IO<Array<A>> =>
@@ -232,29 +212,6 @@ export const loggingWorld = (inner: World): World => ({
     await inner.writeLine(s);
   },
 });
-
-// === 8 Do notation ===
-
-type IOGen<A> = Generator<IO<unknown>, A, unknown>;
-export const doIO = <A>(genFn: () => IOGen<A>): IO<A> => {
-  const gen = genFn();
-
-  const walk = (v: unknown): IO<A> => {
-    const result = gen.next(v);
-
-    if (result.done) {
-      return pure(result.value);
-    }
-
-    return bind(result.value, walk);
-  };
-
-  return walk(undefined);
-};
-
-export function* _<A>(io: IO<A>): Generator<IO<A>, A, A> {
-  return yield io;
-}
 
 const myProgram = doIO(function* () {
   yield* _(writeLine("What is your name?"));

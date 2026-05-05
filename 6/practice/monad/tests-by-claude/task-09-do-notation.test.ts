@@ -9,7 +9,9 @@
 //       When you finish E8.1, you can temporarily swap to yield-style programs to verify.
 
 import { describe, expect, it } from "vitest";
-import { bind, doIO, fetchUrl, makeTestWorld, pure, readLine, runIO, writeLine } from "../index";
+
+import { doIO } from "../gen.ts";
+import { bind, fetchUrl, makeTestWorld, pure, readLine, runIO, writeLine } from "../index";
 
 describe("E8.1: doIO — basic contract (naive yield implementation)", () => {
   it("doIO(fn) returns an IO value, not a function or thunk", () => {
@@ -134,7 +136,8 @@ describe("E8.4★: doIO output is equivalent to bind-based program", () => {
   it("doIO program and bind program produce identical output", async () => {
     // bind-based (reference)
     const bindProgram = bind(writeLine("Name?"), () =>
-      bind(readLine, (name) => writeLine(`Hi, ${name}!`)));
+      bind(readLine, (name) => writeLine(`Hi, ${name}!`)),
+    );
 
     // doIO-based (same logic)
     const doProgram = doIO(function* () {
@@ -159,8 +162,11 @@ describe("E8.4★: doIO output is equivalent to bind-based program", () => {
       bind(readLine, (name) =>
         bind(writeLine("Age?"), () =>
           bind(readLine, (age) =>
-            bind(fetchUrl("https://api.test"), (body) =>
-              writeLine(`${name}, ${age}, ${body}`))))));
+            bind(fetchUrl("https://api.test"), (body) => writeLine(`${name}, ${age}, ${body}`)),
+          ),
+        ),
+      ),
+    );
 
     const doProgram = doIO(function* () {
       yield* writeLine("Name?");
