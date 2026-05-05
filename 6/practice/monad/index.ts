@@ -1,11 +1,4 @@
-import { IO, RawIO } from "./types.ts";
-
-export class YieldWrap<T> {
-  readonly _Y!: () => T;
-  constructor(readonly value: T) {}
-}
-
-export type IOGen<A> = Generator<YieldWrap<IO<any>>, A>;
+import { IO, IOGen, RawIO, Result, YieldWrap } from "./types.ts";
 
 const exhaustive = (x: never): never => {
   // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -13,18 +6,55 @@ const exhaustive = (x: never): never => {
 };
 
 // === 2 Task constructors ===
-
-export const mkIO = <A>(io: RawIO<A>): IO<A> => {
+export const mkIO = <A, E>(io: RawIO<A, E>): IO<A, E> => {
   Object.defineProperty(io, Symbol.iterator, {
     value: function* () {
       return (yield new YieldWrap(this)) as A;
     },
   });
 
-  return io as IO<A>;
+  return io as IO<A, E>;
+};
+
+export const attempt = <A, E>(io: IO<A, E>): IO<Result<E, A>> => {
+  switch (io.tag) {
+    case "pure":
+      return mkIO({
+        tag: "pure",
+        value: { ok: true, value: io.value },
+      });
+
+    case "readLine":
+      return mkIO({
+        next: (x) => attempt(io.next(x)),
+        tag: "readLine",
+      });
+
+    case "writeLine":
+      return mkIO({
+        next: attempt(io.next),
+        tag: "writeLine",
+        text: io.text,
+      });
+
+    case "fetch":
+      return mkIO({
+        next: (body) => attempt(io.next(body)),
+        options: io.options,
+        tag: "fetch",
+        url: io.url,
+      });
+
+    case "fail":
+      return mkIO({
+        tag: "pure",
+        value: { error: io.error, ok: false },
+      });
+  }
 };
 
 export const pure = <A>(value: A): IO<A> => mkIO({ tag: "pure", value: value });
+export const fail = <E>(error: E): IO<never, E> => mkIO({ error, tag: "fail" });
 
 export const readLine: IO<string> = mkIO({
   next: pure,
@@ -48,7 +78,7 @@ export const fetchUrl = (url: string, options?: RequestInit): IO<string> =>
 
 // === 3 Task bind ====
 
-export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
+export const bind = <A, B, E1, E2>(io: IO<A, E1>, f: (a: A) => IO<B, E2>): IO<B, E1 | E2> => {
   switch (io.tag) {
     case "pure":
       return f(io.value);
@@ -65,6 +95,12 @@ export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
         options: io.options,
         tag: "fetch",
         url: io.url,
+      });
+
+    case "fail":
+      return mkIO({
+        error: io.error,
+        tag: "fail",
       });
 
     default:
@@ -112,11 +148,14 @@ export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
         current = current.next;
         break;
 
-      case "fetch": {
-        const res = await world.fetch(current.url, current.options);
-        current = current.next(res);
-        break;
-      }
+      case "fetch":
+        {
+          const res = await world.fetch(current.url, current.options);
+          current = current.next(res);
+          break;
+        }
+        // TODO: FIX
+        exhaustive(current);
     }
   }
 };

@@ -1,33 +1,51 @@
-import { IOGen } from "./index.ts";
+export type RawIO<A, E = never> =
+  | IOFail<E>
+  | IOFetch<A, E>
+  | IOPure<A>
+  | IOReadLine<A, E>
+  | IOWriteLine<A, E>;
 
-export type RawIO<A> = Fetch<A> | IOPure<A> | IOReadLine<A> | IOWriteLine<A>;
-export type IO<A> = {
+export class YieldWrap<T> {
+  readonly _Y!: () => T;
+  constructor(readonly value: T) {}
+}
+
+export type Result<E, A> = { error: E; ok: false; } | { ok: true; value: A };
+
+export type IOGen<A> = Generator<YieldWrap<IO<any>>, A>;
+export type IO<A, E = never> = {
   [Symbol.iterator](): IOGen<A>;
-} & RawIO<A>;
+} & RawIO<A, E>;
+
+export type IOFail<E> = {
+  error: E;
+  tag: "fail";
+};
+
 export type IOPure<A> = {
   tag: "pure";
   value: A;
 };
 
-export type IOReadLine<A> = {
+export type IOReadLine<A, E> = {
   tag: "readLine";
-  next: (s: string) => IO<A>;
+  next: (s: string) => IO<A, E>;
 };
 
-export type IOWriteLine<A> = {
-  next: IO<A>;
+export type IOWriteLine<A, E> = {
+  next: IO<A, E>;
   tag: "writeLine";
   text: string;
 };
 
-export type Fetch<A> = {
+export type IOFetch<A, E> = {
   tag: "fetch";
   url: string;
   options?: RequestInit;
-  next: (body: string) => IO<A>;
+  next: (body: string) => IO<A, E>;
 };
 
-export type Sleep<A> = {
+export type IOSleep<A> = {
   ms: number;
   next: IO<A>;
   tag: "sleep";
