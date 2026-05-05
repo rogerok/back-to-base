@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { Fetch, IO, IOPure, IOReadLine, IOWriteLine } from "../index";
+
 import { makeTestWorld, runIO } from "../index";
+import { Fetch, IO, IOPure, IOReadLine, IOWriteLine } from "../types.ts";
 
 describe("E1.1: IO<A> — tagged union with correct shapes", () => {
   it("IOPure has tag 'pure' and value", () => {
