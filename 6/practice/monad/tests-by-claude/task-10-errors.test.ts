@@ -7,19 +7,20 @@
 //   E9.4: `runIOExit`, `Exit`, `Cause` types; `Die` variant
 
 import { describe, expect, it } from "vitest";
+
 import {
   attempt,
   bind,
   fail,
   fetchUrl,
-  makeTestWorld,
   mapError,
   orElse,
   pure,
   readLine,
   runIO,
   writeLine,
-} from "../index";
+} from "../script";
+import { makeTestWorld } from "../script/worlds.ts";
 
 describe("E9.1: IO<A, E> — fail instruction and error channel", () => {
   it("fail(e) has tag 'fail'", () => {
@@ -46,8 +47,7 @@ describe("E9.1: IO<A, E> — fail instruction and error channel", () => {
   it("existing programs compile and run unchanged (E defaults to never)", async () => {
     const world = makeTestWorld(["Alice"], {});
     await runIO(
-      bind(writeLine("Name?"), () =>
-        bind(readLine, (name) => writeLine(`Hi, ${name}!`))),
+      bind(writeLine("Name?"), () => bind(readLine, (name) => writeLine(`Hi, ${name}!`))),
       world,
     );
     expect(world.output).toEqual(["Name?", "Hi, Alice!"]);
@@ -76,7 +76,7 @@ describe("E9.2: attempt, orElse, mapError", () => {
     it("attempt(fail(e)) resolves to { ok: false, error: e }", async () => {
       const world = makeTestWorld([], {});
       const result = await runIO(attempt(fail("network error")), world);
-      expect(result).toEqual({ ok: false, error: "network error" });
+      expect(result).toEqual({ error: "network error", ok: false });
     });
 
     it("attempt never rejects — error channel becomes a value", async () => {
@@ -86,9 +86,7 @@ describe("E9.2: attempt, orElse, mapError", () => {
 
     it("attempt preserves effects before the failure", async () => {
       const world = makeTestWorld([], {});
-      const program = attempt(
-        bind(writeLine("before fail"), () => fail("oops")),
-      );
+      const program = attempt(bind(writeLine("before fail"), () => fail("oops")));
       await runIO(program, world);
       expect(world.output).toEqual(["before fail"]);
     });
@@ -128,7 +126,10 @@ describe("E9.2: attempt, orElse, mapError", () => {
       // The resulting program should not reject when the first fails
       const world = makeTestWorld([], {});
       await expect(
-        runIO(orElse(fail("handled"), () => pure("recovered")), world),
+        runIO(
+          orElse(fail("handled"), () => pure("recovered")),
+          world,
+        ),
       ).resolves.toBe("recovered");
     });
 
@@ -145,11 +146,8 @@ describe("E9.2: attempt, orElse, mapError", () => {
   describe("mapError — transform the error type", () => {
     it("mapError transforms the error value", async () => {
       const world = makeTestWorld([], {});
-      const result = await runIO(
-        attempt(mapError(fail("err"), (e) => e.toUpperCase())),
-        world,
-      );
-      expect(result).toEqual({ ok: false, error: "ERR" });
+      const result = await runIO(attempt(mapError(fail("err"), (e) => e.toUpperCase())), world);
+      expect(result).toEqual({ error: "ERR", ok: false });
     });
 
     it("mapError on pure(a) — no error to transform, returns a", async () => {
@@ -164,10 +162,10 @@ describe("E9.2: attempt, orElse, mapError", () => {
     it("mapError wraps raw error in a typed object", async () => {
       const world = makeTestWorld([], {});
       const result = await runIO(
-        attempt(mapError(fail("network down"), (e) => ({ message: e, code: 503 }))),
+        attempt(mapError(fail("network down"), (e) => ({ code: 503, message: e }))),
         world,
       );
-      expect(result).toEqual({ ok: false, error: { message: "network down", code: 503 } });
+      expect(result).toEqual({ error: { code: 503, message: "network down" }, ok: false });
     });
   });
 });

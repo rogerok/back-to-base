@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { fetchUrl, makeTestWorld, pure, readLine, runIO, writeLine } from "../index";
+
+import { fetchUrl, pure, readLine, runIO, writeLine } from "../script";
+import { makeTestWorld } from "../script/worlds.ts";
 
 describe("E2.1: smart constructors — shape and behavior", () => {
   describe("pure", () => {
@@ -42,7 +44,7 @@ describe("E2.1: smart constructors — shape and behavior", () => {
     });
 
     it("returns the value from world.readLine when run", async () => {
-      const { bind } = await import("../index");
+      const { bind } = await import("../script");
       const world = makeTestWorld(["typed-input"], {});
       const result = await runIO(bind(readLine, pure), world);
       expect(result).toBe("typed-input");
@@ -68,7 +70,9 @@ describe("E2.1: smart constructors — shape and behavior", () => {
     it("calling writeLine does not produce output — only runIO does", () => {
       let called = false;
       const origConsoleLog = console.log;
-      console.log = () => { called = true; };
+      console.log = () => {
+        called = true;
+      };
       writeLine("should not appear");
       console.log = origConsoleLog;
       expect(called).toBe(false);
@@ -98,7 +102,7 @@ describe("E2.1: smart constructors — shape and behavior", () => {
     });
 
     it("returns the body from world.fetch when run", async () => {
-      const { bind } = await import("../index");
+      const { bind } = await import("../script");
       const world = makeTestWorld([], { "https://api.test": "response-body" });
       const result = await runIO(bind(fetchUrl("https://api.test"), pure), world);
       expect(result).toBe("response-body");

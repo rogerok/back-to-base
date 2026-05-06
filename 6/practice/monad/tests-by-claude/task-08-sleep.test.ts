@@ -11,7 +11,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { bind, makeTestWorld, pure, runIO, sleep, writeLine } from "../index";
+import { bind, pure, runIO, sleep, writeLine } from "../script";
+import { makeTestWorld } from "../script/worlds.ts";
 
 describe("E7.3★: sleep constructor", () => {
   it("sleep(ms) has tag 'sleep'", () => {

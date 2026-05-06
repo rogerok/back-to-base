@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { andThen, bind, makeTestWorld, pure, readLine, runIO, sequence, writeLine } from "../index";
+
+import { andThen, bind, pure, readLine, runIO, sequence, writeLine } from "../script";
+import { makeTestWorld } from "../script/worlds.ts";
 
 // Equivalent to the myProgram from the assignment (not exported, rebuilt here)
 const makeMyProgram = () =>
   bind(writeLine("What is your name?"), () =>
     bind(readLine, (name) =>
       bind(writeLine(`Hello, ${name}! How old are you?`), () =>
-        bind(readLine, (age) =>
-          writeLine(`Wow, ${name}, ${age} is a great age!`)))));
+        bind(readLine, (age) => writeLine(`Wow, ${name}, ${age} is a great age!`)),
+      ),
+    ),
+  );
 
 describe("E4.1: a complete multi-step IO program", () => {
   it("is a value — building the program fires no effects", () => {
@@ -16,7 +20,8 @@ describe("E4.1: a complete multi-step IO program", () => {
       bind(readLine, (name) => {
         fired = true;
         return writeLine(`Hello, ${name}!`);
-      }));
+      }),
+    );
     expect(fired).toBe(false);
   });
 

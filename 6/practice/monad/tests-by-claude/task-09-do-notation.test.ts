@@ -10,7 +10,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { bind, doIO, fetchUrl, makeTestWorld, readLine, runIO, writeLine } from "../index";
+import { bind, doIO, fetchUrl, readLine, runIO, writeLine } from "../script";
+import { makeTestWorld } from "../script/worlds.ts";
 
 describe("E8.3★★: doIO — basic contract", () => {
   it("doIO(fn) returns an IO value, not a function or thunk", () => {

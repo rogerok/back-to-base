@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { bind, fetchUrl, loggingWorld, makeTestWorld, pure, readLine, runIO, writeLine } from "../index";
+
+import { bind, fetchUrl, pure, readLine, runIO, writeLine } from "../script";
+import { loggingWorld, makeTestWorld } from "../script/worlds.ts";
 
 describe("E6.1: makeTestWorld — deterministic test environment", () => {
   it("captures writeLine calls in output array, in order", async () => {
@@ -40,9 +42,9 @@ describe("E6.1: makeTestWorld — deterministic test environment", () => {
 describe("E7.2: makeTestWorld fetch mock — fail loud on unmocked URLs", () => {
   it("throws for an unmocked URL with the url in the error message", async () => {
     const world = makeTestWorld([], {});
-    await expect(
-      runIO(fetchUrl("https://not-mocked.test"), world),
-    ).rejects.toThrow("https://not-mocked.test");
+    await expect(runIO(fetchUrl("https://not-mocked.test"), world)).rejects.toThrow(
+      "https://not-mocked.test",
+    );
   });
 
   it("returns the mocked body for a known URL", async () => {
@@ -106,7 +108,8 @@ describe("E6.3★: loggingWorld — transparent decorator over inner world", () 
 
 describe("E6.2: same IO program runs identically in any testWorld", () => {
   const program = bind(writeLine("Hello?"), () =>
-    bind(readLine, (name) => writeLine(`Got: ${name}`)));
+    bind(readLine, (name) => writeLine(`Got: ${name}`)),
+  );
 
   it("produces the same output for the same inputs in two separate worlds", async () => {
     const world1 = makeTestWorld(["Alice"], {});

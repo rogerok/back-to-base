@@ -9,15 +9,9 @@
 // pass WITHOUT modification — only this file tests Freer-specific properties.
 
 import { describe, expect, it } from "vitest";
-import {
-  bind,
-  fetchUrl,
-  makeTestWorld,
-  pure,
-  readLine,
-  runIO,
-  writeLine,
-} from "../index";
+
+import { bind, fetchUrl, pure, readLine, runIO, writeLine } from "../script";
+import { makeTestWorld } from "../script/worlds.ts";
 
 // ── E10.1: Freer encoding preserves all existing behavioral contracts ──────
 
@@ -49,8 +43,10 @@ describe("E10.1: Freer encoding — existing programs run identically", () => {
     const program = bind(writeLine("What is your name?"), () =>
       bind(readLine, (name) =>
         bind(writeLine(`Hello, ${name}! How old are you?`), () =>
-          bind(readLine, (age) =>
-            writeLine(`Wow, ${name}, ${age} is a great age!`)))));
+          bind(readLine, (age) => writeLine(`Wow, ${name}, ${age} is a great age!`)),
+        ),
+      ),
+    );
 
     const world = makeTestWorld(["Alice", "30"], {});
     await runIO(program, world);

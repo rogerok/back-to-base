@@ -6,7 +6,9 @@
 // E11.2 is a structural fix — with FTCQueue, left-assoc chains become O(N).
 
 import { describe, expect, it } from "vitest";
-import { bind, makeTestWorld, pure, runIO } from "../index";
+
+import { bind, pure, runIO } from "../script";
+import { makeTestWorld } from "../script/worlds.ts";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -102,7 +104,9 @@ describe("E11.2★★: FTCQueue — O(N) bind composition", () => {
     await runIO(buildLeftAssocChain(100_000), world2);
     const t100k = Date.now() - t100k_start;
 
-    console.log(`FTCQueue timings: 10k=${t10k}ms  100k=${t100k}ms  ratio=${(t100k / Math.max(t10k, 1)).toFixed(1)}x`);
+    console.log(
+      `FTCQueue timings: 10k=${t10k}ms  100k=${t100k}ms  ratio=${(t100k / Math.max(t10k, 1)).toFixed(1)}x`,
+    );
 
     // With O(N): ratio should be ~10x (acceptable: ≤50x for timing noise)
     // With O(N²): ratio would be ~100x

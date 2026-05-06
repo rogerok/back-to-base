@@ -1,4 +1,5 @@
-import { myProgram, runIO, type World } from "./index";
+import { myProgram, runIO } from "./index.ts";
+import { World } from "./worlds.ts";
 
 const world: World = {
   readLine: async () => prompt("") ?? "",

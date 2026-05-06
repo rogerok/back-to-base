@@ -10,7 +10,7 @@ export class YieldWrap<T> {
   constructor(readonly value: T) {}
 }
 
-export type Result<E, A> = { error: E; ok: false; } | { ok: true; value: A };
+export type Result<E, A> = { error: E; ok: false } | { ok: true; value: A };
 
 export type IOGen<A> = Generator<YieldWrap<IO<any>>, A>;
 export type IO<A, E = never> = {

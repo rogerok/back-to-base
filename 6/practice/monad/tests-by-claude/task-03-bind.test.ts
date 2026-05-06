@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { andThen, bind, fetchUrl, makeTestWorld, map, pure, readLine, runIO, writeLine } from "../index";
+
+import { andThen, bind, fetchUrl, map, pure, readLine, runIO, writeLine } from "../script";
+import { makeTestWorld } from "../script/worlds.ts";
 
 describe("E3.1: bind — composes IO instructions without executing effects", () => {
   it("bind(pure(a), f) is equivalent to f(a)", async () => {
     const world = makeTestWorld([], {});
-    const result = await runIO(bind(pure(10), (x) => pure(x * 2)), world);
+    const result = await runIO(
+      bind(pure(10), (x) => pure(x * 2)),
+      world,
+    );
     expect(result).toBe(20);
   });
 
@@ -31,7 +36,10 @@ describe("E3.1: bind — composes IO instructions without executing effects", ()
 
   it("bind(readLine, f) passes the read value to f", async () => {
     const world = makeTestWorld(["user-input"], {});
-    const result = await runIO(bind(readLine, (s) => pure(s.toUpperCase())), world);
+    const result = await runIO(
+      bind(readLine, (s) => pure(s.toUpperCase())),
+      world,
+    );
     expect(result).toBe("USER-INPUT");
   });
 
@@ -47,8 +55,7 @@ describe("E3.1: bind — composes IO instructions without executing effects", ()
   it("bind preserves left-to-right effect order", async () => {
     const world = makeTestWorld(["Alice"], {});
     await runIO(
-      bind(writeLine("prompt"), () =>
-        bind(readLine, (name) => writeLine(`got: ${name}`))),
+      bind(writeLine("prompt"), () => bind(readLine, (name) => writeLine(`got: ${name}`))),
       world,
     );
     expect(world.output).toEqual(["prompt", "got: Alice"]);
@@ -57,9 +64,7 @@ describe("E3.1: bind — composes IO instructions without executing effects", ()
   it("bind chains three effects correctly", async () => {
     const world = makeTestWorld(["name", "age"], {});
     await runIO(
-      bind(readLine, (name) =>
-        bind(readLine, (age) =>
-          writeLine(`${name} is ${age}`))),
+      bind(readLine, (name) => bind(readLine, (age) => writeLine(`${name} is ${age}`))),
       world,
     );
     expect(world.output).toEqual(["name is age"]);
@@ -80,20 +85,29 @@ describe("E3.2: map and andThen — derived from bind", () => {
   describe("map", () => {
     it("applies a pure function to the IO result", async () => {
       const world = makeTestWorld([], {});
-      const result = await runIO(map(pure(5), (x) => x + 1), world);
+      const result = await runIO(
+        map(pure(5), (x) => x + 1),
+        world,
+      );
       expect(result).toBe(6);
     });
 
     it("preserves effects, only transforms the value", async () => {
       const world = makeTestWorld([], {});
-      const result = await runIO(map(writeLine("side-effect"), () => 42), world);
+      const result = await runIO(
+        map(writeLine("side-effect"), () => 42),
+        world,
+      );
       expect(result).toBe(42);
       expect(world.output).toEqual(["side-effect"]);
     });
 
     it("map(readLine, f) transforms the read value", async () => {
       const world = makeTestWorld(["hello"], {});
-      const result = await runIO(map(readLine, (s) => s.length), world);
+      const result = await runIO(
+        map(readLine, (s) => s.length),
+        world,
+      );
       expect(result).toBe(5);
     });
   });
@@ -121,10 +135,7 @@ describe("E3.2: map and andThen — derived from bind", () => {
 
     it("chains three actions with andThen", async () => {
       const world = makeTestWorld([], {});
-      await runIO(
-        andThen(andThen(writeLine("a"), writeLine("b")), writeLine("c")),
-        world,
-      );
+      await runIO(andThen(andThen(writeLine("a"), writeLine("b")), writeLine("c")), world);
       expect(world.output).toEqual(["a", "b", "c"]);
     });
   });

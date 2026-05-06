@@ -1,22 +1,32 @@
 import { describe, expect, it, vi } from "vitest";
-import { bind, fetchUrl, makeTestWorld, pure, readLine, runIO, writeLine } from "../index";
-import type { World } from "../index";
+
+import { bind, fetchUrl, pure, readLine, runIO, writeLine } from "../script";
+import { makeTestWorld, World } from "../script/worlds.ts";
 
 // Minimal hand-rolled world for fine-grained control
-const makeSpyWorld = (): World & {
-  written: string[];
-  reads: string[];
+const makeSpyWorld = (): {
   fetched: string[];
-} => {
+  reads: string[];
+  written: string[];
+} & World => {
   const written: string[] = [];
   const reads = ["input-1", "input-2", "input-3"];
   const fetched: string[] = [];
   return {
-    fetch: async (url) => { fetched.push(url); return `body:${url}`; },
+    fetch: async (url) => {
+      fetched.push(url);
+      return `body:${url}`;
+    },
     fetched,
-    readLine: async () => reads.shift() ?? (() => { throw new Error("no input"); })(),
+    readLine: async () =>
+      reads.shift() ??
+      (() => {
+        throw new Error("no input");
+      })(),
     reads,
-    writeLine: async (s) => { written.push(s); },
+    writeLine: async (s) => {
+      written.push(s);
+    },
     written,
   };
 };
@@ -60,8 +70,7 @@ describe("E5.1: runIO — interprets IO programs via the World interface", () =>
   it("runIO processes writeLine → readLine → writeLine in the correct order", async () => {
     const world = makeTestWorld(["Alice"], {});
     await runIO(
-      bind(writeLine("Name?"), () =>
-        bind(readLine, (name) => writeLine(`Hi, ${name}!`))),
+      bind(writeLine("Name?"), () => bind(readLine, (name) => writeLine(`Hi, ${name}!`))),
       world,
     );
     expect(world.output).toEqual(["Name?", "Hi, Alice!"]);
