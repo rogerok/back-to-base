@@ -1,3 +1,4 @@
+import { FetchError, HttpError, ParseError } from "./errors.ts";
 import { IO, IOGen, RawIO, Result, YieldWrap } from "./types.ts";
 import { exhaustive } from "./utils.ts";
 import { World } from "./worlds.ts";
@@ -26,14 +27,6 @@ export const writeLine = (text: string): IO<void> =>
     next: pure(undefined),
     tag: "writeLine",
     text,
-  });
-
-export const fetchUrl = (url: string, options?: RequestInit): IO<string, unknown> =>
-  mkIO({
-    next: pure,
-    options,
-    tag: "fetch",
-    url,
   });
 
 // === 3 Task bind ====
@@ -80,6 +73,30 @@ export const orElse = <A, E1, E2>(io: IO<A, E1>, fallback: (e: E1) => IO<A, E2>)
 
 export const mapError = <A, E1, E2>(io: IO<A, E1>, f: (e: E1) => E2): IO<A, E2> => {
   return orElse(io, (e) => fail(f(e)));
+};
+
+export const fetchUrl = (
+  url: string,
+  options?: RequestInit,
+): IO<string, FetchError | HttpError> => {
+  return mapError(
+    mkIO<string, unknown>({
+      next: pure,
+      options,
+      tag: "fetch",
+      url,
+    }),
+    (e) =>
+      e instanceof HttpError || e instanceof FetchError ? e : new FetchError(url, "unknown error"),
+  );
+};
+
+export const parseJson = (body: string): IO<unknown, ParseError> => {
+  try {
+    return pure(JSON.parse(body));
+  } catch (e) {
+    return fail(new ParseError(e instanceof Error ? String(e.cause) : "Cannot parse json"));
+  }
 };
 
 export const bind = <A, B, E1, E2>(io: IO<A, E1>, f: (a: A) => IO<B, E2>): IO<B, E1 | E2> => {
