@@ -1,18 +1,16 @@
 import { stdin as input, stdout as output } from "node:process";
 import readline from "node:readline/promises";
 
-import { doIO, fetchUrl, readLine, runIO, writeLine } from "./index.ts";
+import { doIO, fetchUrl, orElse, pure, readLine, runIO, writeLine } from "./index.ts";
+import { IO } from "./types.ts";
 
-const myProgram = doIO(function* () {
+const myProgram: IO<void> = doIO(function* () {
   yield* writeLine("What is your name?");
-
   const name = yield* readLine;
   yield* writeLine(`Hello, ${name}! How old are you?`);
-
   const age = yield* readLine;
   yield* writeLine("Loading greeting of the day...");
-
-  const body = yield* fetchUrl("https://httpbin.org/uuid");
+  const body = yield* orElse(fetchUrl("https://httpbin.org/uuid"), () => pure("default-token"));
   yield* writeLine(`Wow, ${name}, ${age}! Token: ${body}`);
 });
 
@@ -30,4 +28,4 @@ void (async () => {
 
   await runIO(myProgram, productionNodeWorld);
   rl.close();
-});
+})();
