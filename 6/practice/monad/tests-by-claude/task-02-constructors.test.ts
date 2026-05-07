@@ -35,12 +35,8 @@ describe("E2.1: smart constructors — shape and behavior", () => {
       expect(readLine).not.toBeNull();
     });
 
-    it("has tag 'readLine'", () => {
-      expect(readLine.tag).toBe("readLine");
-    });
-
-    it("has a next field that is a function", () => {
-      expect(typeof (readLine as any).next).toBe("function");
+    it("has instruction tag 'readLine'", () => {
+      expect((readLine as any).op?.tag).toBe("readLine");
     });
 
     it("returns the value from world.readLine when run", async () => {
@@ -52,19 +48,13 @@ describe("E2.1: smart constructors — shape and behavior", () => {
   });
 
   describe("writeLine", () => {
-    it("has tag 'writeLine'", () => {
-      expect(writeLine("test").tag).toBe("writeLine");
+    it("has instruction tag 'writeLine'", () => {
+      expect((writeLine("test") as any).op?.tag).toBe("writeLine");
     });
 
-    it("stores the text", () => {
+    it("stores the text in op", () => {
       const io = writeLine("hello world");
-      expect((io as any).text).toBe("hello world");
-    });
-
-    it("has a next field that is an IO value", () => {
-      const next = (writeLine("x") as any).next;
-      expect(typeof next).toBe("object");
-      expect(next).toHaveProperty("tag");
+      expect((io as any).op?.text).toBe("hello world");
     });
 
     it("calling writeLine does not produce output — only runIO does", () => {
@@ -86,19 +76,19 @@ describe("E2.1: smart constructors — shape and behavior", () => {
   });
 
   describe("fetchUrl", () => {
-    it("has tag 'fetch'", () => {
-      expect(fetchUrl("https://example.com").tag).toBe("fetch");
+    it("has instruction tag 'fetch'", () => {
+      expect((fetchUrl("https://example.com") as any).op?.tag).toBe("fetch");
     });
 
-    it("stores the url", () => {
+    it("stores the url in op", () => {
       const io = fetchUrl("https://api.test/data");
-      expect((io as any).url).toBe("https://api.test/data");
+      expect((io as any).op?.url).toBe("https://api.test/data");
     });
 
-    it("stores optional options", () => {
+    it("stores optional options in op", () => {
       const opts = { method: "POST" } as RequestInit;
       const io = fetchUrl("https://x.test", opts);
-      expect((io as any).options).toBe(opts);
+      expect((io as any).op?.options).toBe(opts);
     });
 
     it("returns the body from world.fetch when run", async () => {

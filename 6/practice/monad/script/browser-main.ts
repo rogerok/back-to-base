@@ -1,4 +1,5 @@
-import { myProgram, runIO } from "./index.ts";
+import { runIO } from "./index.ts";
+import { myProgram } from "./main.ts";
 import { World } from "./worlds.ts";
 
 const world: World = {

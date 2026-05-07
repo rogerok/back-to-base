@@ -3,8 +3,9 @@ import readline from "node:readline/promises";
 
 import { FetchError, HttpError } from "./errors.ts";
 import { doIO, fetchUrl, parseJson, readLine, runIO, writeLine } from "./index.ts";
+import { Freer, Instr } from "./types.ts";
 
-const myProgram = doIO(function* () {
+export const myProgram: Freer<Instr<Record<string, unknown>>, void> = doIO(function* () {
   yield* writeLine("What is your name?");
 
   const name = yield* readLine;

@@ -1,116 +1,62 @@
 import { describe, expect, it } from "vitest";
 
-import { runIO } from "../script";
-import { IO, IOFetch, IOPure, IOReadLine, IOWriteLine } from "../script/types.ts";
+import { bind, pure, readLine, runIO, writeLine } from "../script";
+import { Freer, Instr } from "../script/types.ts";
 import { makeTestWorld } from "../script/worlds.ts";
 
-describe("E1.1: IO<A> — tagged union with correct shapes", () => {
-  it("IOPure has tag 'pure' and value", () => {
-    const io: IOPure<number> = { tag: "pure", value: 42 };
+describe("E10.1: Freer<Instr, A> — tagged union with correct shapes", () => {
+  it("pure has tag 'pure' and stores the value", () => {
+    const io: Freer<Instr<any>, number> = pure(42);
     expect(io.tag).toBe("pure");
-    expect(io.value).toBe(42);
+    expect((io as any).value).toBe(42);
   });
 
-  it("IOReadLine has tag 'readLine' and next: (string) => IO<A>", () => {
-    const io: IOReadLine<string> = {
-      next: (s) => ({ tag: "pure", value: s }),
-      tag: "readLine",
-    };
-    expect(io.tag).toBe("readLine");
-    expect(typeof io.next).toBe("function");
+  it("effectful constructors produce 'impure' nodes", () => {
+    expect(writeLine("x").tag).toBe("impure");
+    expect(readLine.tag).toBe("impure");
   });
 
-  it("IOWriteLine has tag 'writeLine', text, and next: IO<A> (not a function)", () => {
-    const io: IOWriteLine<void> = {
-      next: { tag: "pure", value: undefined },
-      tag: "writeLine",
-      text: "hello",
-    };
-    expect(io.tag).toBe("writeLine");
-    expect(io.text).toBe("hello");
-    expect(typeof io.next).toBe("object");
+  it("impure nodes carry an op with the instruction's tag", () => {
+    expect((writeLine("x") as any).op?.tag).toBe("writeLine");
+    expect((readLine as any).op?.tag).toBe("readLine");
   });
 
-  it("Fetch has tag 'fetch', url, and next: (string) => IO<A>", () => {
-    const io: IOFetch<string> = {
-      next: (body) => ({ tag: "pure", value: body }),
-      tag: "fetch",
-      url: "https://example.com",
-    };
-    expect(io.tag).toBe("fetch");
-    expect(io.url).toBe("https://example.com");
-    expect(typeof io.next).toBe("function");
-  });
-
-  it("all variants are assignable to IO<A>", () => {
-    const variants: IO<string>[] = [
-      { tag: "pure", value: "x" },
-      { next: (s) => ({ tag: "pure", value: s }), tag: "readLine" },
-      { next: { tag: "pure", value: "x" }, tag: "writeLine", text: "t" },
-      { next: (b) => ({ tag: "pure", value: b }), tag: "fetch", url: "http://x" },
-    ];
-    expect(variants).toHaveLength(4);
-    for (const v of variants) {
+  it("all smart constructors return Freer values with a tag", () => {
+    const values = [pure("x"), readLine, writeLine("t")];
+    for (const v of values) {
       expect(v).toHaveProperty("tag");
     }
   });
 });
 
-describe("E1.2: greeting — IO<void> is pure data, has no side effects at build time", () => {
-  it("constructing the tree does not fire any continuations", () => {
+describe("E10.1: Freer program is pure data — no side effects at build time", () => {
+  it("constructing a Freer program fires no continuations", () => {
     let effectFired = false;
 
-    const _greeting: IO<void> = {
-      next: {
-        next: (name) => {
-          effectFired = true; // would fire if IO were evaluated eagerly
-          return {
-            next: { tag: "pure", value: undefined },
-            tag: "writeLine",
-            text: `Hello, ${name}!`,
-          };
-        },
-        tag: "readLine",
-      },
-      tag: "writeLine",
-      text: "What is your name?",
-    };
+    bind(writeLine("prompt"), () =>
+      bind(readLine, (name) => {
+        effectFired = true;
+        return writeLine(`Hello, ${name}!`);
+      }),
+    );
 
     expect(effectFired).toBe(false);
   });
 
-  it("manually-built greeting tree produces correct output when interpreted", async () => {
-    const greeting: IO<void> = {
-      next: {
-        next: (name) => ({
-          next: { tag: "pure", value: undefined },
-          tag: "writeLine",
-          text: `Hello, ${name}!`,
-        }),
-        tag: "readLine",
-      },
-      tag: "writeLine",
-      text: "What is your name?",
-    };
+  it("program built with smart constructors produces correct output when interpreted", async () => {
+    const greeting = bind(writeLine("What is your name?"), () =>
+      bind(readLine, (name) => writeLine(`Hello, ${name}!`)),
+    );
 
     const world = makeTestWorld(["Alice"], {});
     await runIO(greeting, world);
     expect(world.output).toEqual(["What is your name?", "Hello, Alice!"]);
   });
 
-  it("the same tree can be run multiple times with different worlds", async () => {
-    const greeting: IO<void> = {
-      next: {
-        next: (name) => ({
-          next: { tag: "pure", value: undefined },
-          tag: "writeLine",
-          text: `Hello, ${name}!`,
-        }),
-        tag: "readLine",
-      },
-      tag: "writeLine",
-      text: "What is your name?",
-    };
+  it("the same program value can be run multiple times with different worlds", async () => {
+    const greeting = bind(writeLine("What is your name?"), () =>
+      bind(readLine, (name) => writeLine(`Hello, ${name}!`)),
+    );
 
     const world1 = makeTestWorld(["Alice"], {});
     const world2 = makeTestWorld(["Bob"], {});

@@ -23,14 +23,14 @@ import {
 import { makeTestWorld } from "../script/worlds.ts";
 
 describe("E9.1: IO<A, E> — fail instruction and error channel", () => {
-  it("fail(e) has tag 'fail'", () => {
+  it("fail(e) has instruction tag 'fail'", () => {
     const io = fail("something went wrong");
-    expect(io.tag).toBe("fail");
+    expect((io as any).op?.tag).toBe("fail");
   });
 
-  it("fail(e) stores the error value", () => {
+  it("fail(e) stores the error value in op", () => {
     const io = fail(42);
-    expect((io as any).error).toBe(42);
+    expect((io as any).op?.error).toBe(42);
   });
 
   it("runIO(fail(e)) rejects the promise", async () => {
@@ -55,7 +55,7 @@ describe("E9.1: IO<A, E> — fail instruction and error channel", () => {
 
   it("bind short-circuits on fail: continuation is not called", async () => {
     let called = false;
-    const program = bind(fail("error"), (_: never) => {
+    const program = bind(fail("error"), (_: unknown) => {
       called = true;
       return pure("unreachable");
     });
@@ -153,7 +153,7 @@ describe("E9.2: attempt, orElse, mapError", () => {
     it("mapError on pure(a) — no error to transform, returns a", async () => {
       const world = makeTestWorld([], {});
       const result = await runIO(
-        mapError(pure(42), (_e: never) => "unreachable"),
+        mapError(pure(42), (_e: unknown) => "unreachable"),
         world,
       );
       expect(result).toBe(42);

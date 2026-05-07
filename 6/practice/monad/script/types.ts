@@ -12,7 +12,7 @@ export class YieldWrap<T> {
 
 export type Result<E, A> = { error: E; ok: false } | { ok: true; value: A };
 
-export type IOGen<A> = Generator<YieldWrap<IO<any>>, A>;
+export type IOGen<A> = Generator<YieldWrap<Freer<Instr<any>, any>>, A>;
 export type IO<A, E = never> = {
   [Symbol.iterator](): IOGen<A>;
 } & RawIO<A, E>;
@@ -50,3 +50,23 @@ export type IOSleep<A> = {
   next: IO<A>;
   tag: "sleep";
 };
+
+export type TReadLine = { _resp: string; tag: "readLine" };
+export type TWriteLine = { _resp: void; tag: "writeLine"; text: string };
+export type TFail = { _resp: never; error: unknown; tag: "fail" };
+export type TFetch<R> = { _resp: R; tag: "fetch"; url: string; options?: RequestInit };
+export type TPure<A> = { tag: "pure"; value: A };
+
+export type Instr<R> = TFail | TFetch<R> | TReadLine | TWriteLine;
+
+export type RawFreer<I extends Instr<any>, A> =
+  | TPure<A>
+  | {
+      op: I;
+      tag: "impure";
+      cont: (resp: I["_resp"]) => Freer<I, A>;
+    };
+
+export type Freer<I extends Instr<any>, A> = {
+  [Symbol.iterator](): IOGen<A>;
+} & RawFreer<I, A>;
