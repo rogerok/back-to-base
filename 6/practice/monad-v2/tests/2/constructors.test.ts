@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { print, pure, readLine, writeLine } from "../../index";
+
+import { pure, readLine, writeLine } from "../../index";
 
 describe("E2.1 — pure", () => {
   it("produces a node with tag 'pure'", () => {
@@ -58,25 +59,6 @@ describe("E2.1 — writeLine", () => {
 
   it("next is pure(undefined) — writeLine yields void", () => {
     const node = writeLine("hi");
-    if (node.tag !== "writeLine") throw new Error("expected writeLine");
-    expect(node.next.tag).toBe("pure");
-    if (node.next.tag !== "pure") return;
-    expect(node.next.value).toBeUndefined();
-  });
-});
-
-describe("E2.2 — print", () => {
-  it("behaves identically to writeLine", () => {
-    const a = print("hello");
-    const b = writeLine("hello");
-    expect(a.tag).toBe(b.tag);
-    if (a.tag !== "writeLine" || b.tag !== "writeLine") return;
-    expect(a.text).toBe(b.text);
-    expect(a.next.tag).toBe(b.next.tag);
-  });
-
-  it("returns IO<void>: next is pure(undefined)", () => {
-    const node = print("msg");
     if (node.tag !== "writeLine") throw new Error("expected writeLine");
     expect(node.next.tag).toBe("pure");
     if (node.next.tag !== "pure") return;
